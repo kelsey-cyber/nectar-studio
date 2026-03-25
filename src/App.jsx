@@ -1,8 +1,3 @@
-import './test-template.js'
-import VisualGenerator from './VisualGenerator';
-
-// Add this component somewhere in your App.jsx JSX:
-<VisualGenerator />
 import { useState } from "react";
 
 const BRAND_DNA = {
@@ -90,6 +85,16 @@ async function generateImage(prompt, apiKey, ratio = "1:1") {
   return URL.createObjectURL(await r.blob());
 }
 
+function downloadText(filename, content) {
+  const blob = new Blob([content], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── BASE COMPONENTS ────────────────────────────────────────────────────────────
+
 function Dots() {
   return (
     <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
@@ -145,8 +150,66 @@ function Pill({ label, active, onClick }) {
   return <button onClick={onClick} style={{ padding:"7px 14px", borderRadius:20, border:`1.5px solid ${active?C.hotPink:C.gray200}`, background:active?C.blush:C.white, color:active?C.hotPink:C.gray600, fontSize:12.5, fontWeight:active?700:500, cursor:"pointer", transition:"all 0.15s" }}>{label}</button>;
 }
 
+// ── NEW SHARED COMPONENTS ──────────────────────────────────────────────────────
+
+// Instagram-style post preview (Zeely-inspired)
+function InstaPreview({ caption, hashtags }) {
+  return (
+    <div style={{ border:`1px solid ${C.gray200}`, borderRadius:14, overflow:"hidden", marginBottom:16, fontFamily:"'Helvetica Neue',Arial,sans-serif", background:C.white, boxShadow:`0 4px 20px rgba(0,0,0,0.06)` }}>
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", borderBottom:`1px solid ${C.gray200}` }}>
+        <div style={{ width:36, height:36, borderRadius:"50%", background:`linear-gradient(135deg,${C.hotPink},${C.coral})`, display:"flex", alignItems:"center", justifyContent:"center", color:C.white, fontSize:14, fontWeight:700, flexShrink:0 }}>N</div>
+        <div style={{ flex:1 }}>
+          <p style={{ margin:0, fontSize:13, fontWeight:700, color:"#000" }}>nectarlifeusa</p>
+          <p style={{ margin:0, fontSize:10.5, color:"#8e8e8e" }}>Las Vegas, Nevada</p>
+        </div>
+        <span style={{ fontSize:20, color:"#8e8e8e", lineHeight:1, cursor:"default" }}>•••</span>
+      </div>
+      {/* Image placeholder */}
+      <div style={{ height:240, background:`linear-gradient(145deg,${C.blush} 0%,${C.cream} 50%,${C.primaryPink}40 100%)`, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", position:"relative" }}>
+        <span style={{ fontSize:36, opacity:0.35, marginBottom:8 }}>✿</span>
+        <p style={{ margin:0, fontSize:12, color:C.gray400, fontStyle:"italic" }}>Your visual here</p>
+        <div style={{ position:"absolute", bottom:10, right:12, background:"rgba(255,255,255,0.88)", borderRadius:6, padding:"4px 9px", fontSize:10, color:C.gray600, fontWeight:600 }}>Photo placeholder</div>
+      </div>
+      {/* Actions */}
+      <div style={{ padding:"12px 14px 6px", background:C.white }}>
+        <div style={{ display:"flex", gap:14, marginBottom:10 }}>
+          <span style={{ fontSize:24, cursor:"default", lineHeight:1 }}>🤍</span>
+          <span style={{ fontSize:24, cursor:"default", lineHeight:1 }}>💬</span>
+          <span style={{ fontSize:24, cursor:"default", lineHeight:1 }}>📤</span>
+          <span style={{ marginLeft:"auto", fontSize:24, cursor:"default", lineHeight:1 }}>🔖</span>
+        </div>
+        {/* Caption */}
+        <p style={{ margin:"0 0 6px", fontSize:13.5, color:"#000", lineHeight:1.55 }}>
+          <strong style={{ fontWeight:700 }}>nectarlifeusa</strong>{" "}{caption}
+        </p>
+        {hashtags && (
+          <p style={{ margin:"0 0 8px", fontSize:13, color:"#00376B", lineHeight:1.5 }}>{hashtags}</p>
+        )}
+        <p style={{ margin:"0 0 4px", fontSize:11.5, color:"#8e8e8e" }}>View all comments</p>
+        <p style={{ margin:"0 0 12px", fontSize:10.5, color:"#8e8e8e", textTransform:"uppercase", letterSpacing:"0.04em" }}>Just now</p>
+      </div>
+    </div>
+  );
+}
+
+// Active campaign context banner — shown in Social, Photo Brief, Visuals (Jasper-inspired)
+function CtxBanner({ ctx, onFill }) {
+  if (!ctx) return null;
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background:C.blush, border:`1.5px solid ${C.primaryPink}`, borderRadius:10, marginBottom:16 }}>
+      <span style={{ fontSize:15, flexShrink:0, color:C.hotPink }}>◈</span>
+      <div style={{ flex:1, minWidth:0 }}>
+        <p style={{ margin:0, fontSize:12, fontWeight:700, color:C.charcoal, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>Active Campaign: {ctx.name}</p>
+        <p style={{ margin:"2px 0 0", fontSize:11, color:C.gray600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ctx.products}</p>
+      </div>
+      <button onClick={onFill} style={{ padding:"6px 12px", borderRadius:8, background:C.hotPink, color:C.white, border:"none", fontSize:11.5, fontWeight:700, cursor:"pointer", flexShrink:0, whiteSpace:"nowrap" }}>Fill Fields</button>
+    </div>
+  );
+}
+
 // ── SOCIAL ────────────────────────────────────────────────────────────────────
-function Social() {
+function Social({ ctx }) {
   const [pillar,setPillar]=useState("ritual");
   const [platform,setPlatform]=useState("instagram");
   const [product,setProduct]=useState("");
@@ -155,10 +218,17 @@ function Social() {
   const [loading,setLoading]=useState(false);
   const [out,setOut]=useState(null);
   const [cp,setCp]=useState({});
+  const [preview,setPreview]=useState(false);
   const sp=BRAND_DNA.socialPillars.find(p=>p.id===pillar);
 
+  function fillFromCtx() {
+    if (!ctx) return;
+    setProduct(ctx.products || "");
+    setAngle(ctx.name ? `${ctx.name} campaign` : "");
+  }
+
   async function go() {
-    setLoading(true); setOut(null);
+    setLoading(true); setOut(null); setPreview(false);
     const sys=`${BRAND_DNA.identity}\n\nGenerate social media content for Nectar Life. Elevated and intentional, not promotional. Benchmarks: Gisou and Chanel. No em-dashes.`;
     const usr=`Generate social content.\nPILLAR: ${sp.label} — ${sp.desc}\nPLATFORM: ${platform}\nPRODUCT: ${product||"General brand moment"}\nANGLE: ${angle||"Seasonal, elevated, ritual-forward"}\nTONE: ${tone}\n\nReturn EXACTLY:\nCAPTION OPTION 1:\n[3-5 sentences, soft CTA at end]\n\nCAPTION OPTION 2:\n[shorter, punchier]\n\nHASHTAGS:\n[8-12 hashtags, always include #nectarlifeusa]\n\nVISUAL DIRECTION:\n[One sentence for ideal image/video]`;
     const res=await callClaude(sys,usr);
@@ -178,6 +248,7 @@ function Social() {
   return (
     <div>
       <p style={{fontSize:13.5,color:C.gray600,lineHeight:1.6,margin:"0 0 20px"}}>Generate on-brand captions and visual direction. Brand DNA and copy rules enforced on every output.</p>
+      <CtxBanner ctx={ctx} onFill={fillFromCtx} />
       <div style={{marginBottom:16}}>
         <label style={{display:"block",fontSize:12,fontWeight:700,color:C.gray600,marginBottom:8,letterSpacing:"0.05em",textTransform:"uppercase"}}>Content Pillar</label>
         <div style={{display:"flex",flexWrap:"wrap",gap:8}}>{BRAND_DNA.socialPillars.map(p=><Pill key={p.id} label={p.label} active={pillar===p.id} onClick={()=>setPillar(p.id)}/>)}</div>
@@ -190,20 +261,31 @@ function Social() {
       <Field label="Product or Focus" value={product} onChange={setProduct} placeholder="e.g. Body Butter, Bath Bombs, Spring collection..."/>
       <Field label="Campaign Angle or Brief" value={angle} onChange={setAngle} placeholder="e.g. Mother's Day gifting, Earth Day ingredient story, summer skin ritual..." area/>
       <Btn onClick={go} loading={loading} label="Generate Social Content"/>
-      {out&&<div style={{marginTop:24}}><div style={{height:1,background:C.gray200,marginBottom:20}}/>
-        {out.raw?<Card label="Output" content={out.raw} onCopy={()=>copy("raw",out.raw)} copied={cp.raw}/>:<>
-          {out.c1&&<Card label="Caption Option 1" content={out.c1} onCopy={()=>copy("c1",out.c1)} copied={cp.c1}/>}
-          {out.c2&&<Card label="Caption Option 2" content={out.c2} onCopy={()=>copy("c2",out.c2)} copied={cp.c2}/>}
-          {out.ht&&<Card label="Hashtags" content={out.ht} onCopy={()=>copy("ht",out.ht)} copied={cp.ht}/>}
-          {out.vd&&<Card label="Visual Direction" content={out.vd} onCopy={()=>copy("vd",out.vd)} copied={cp.vd}/>}
-        </>}
-      </div>}
+      {out&&(
+        <div style={{marginTop:24}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+            <div style={{height:1,background:C.gray200,flex:1,marginRight:12}}/>
+            {!out.raw&&(
+              <button onClick={()=>setPreview(p=>!p)} style={{padding:"5px 14px",borderRadius:20,border:`1.5px solid ${preview?C.hotPink:C.gray200}`,background:preview?C.blush:C.white,color:preview?C.hotPink:C.gray600,fontSize:11.5,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s",flexShrink:0}}>
+                {preview?"Hide Preview":"Preview Post"}
+              </button>
+            )}
+          </div>
+          {preview&&!out.raw&&<InstaPreview caption={out.c1||""} hashtags={out.ht||""}/>}
+          {out.raw?<Card label="Output" content={out.raw} onCopy={()=>copy("raw",out.raw)} copied={cp.raw}/>:<>
+            {out.c1&&<Card label="Caption Option 1" content={out.c1} onCopy={()=>copy("c1",out.c1)} copied={cp.c1}/>}
+            {out.c2&&<Card label="Caption Option 2" content={out.c2} onCopy={()=>copy("c2",out.c2)} copied={cp.c2}/>}
+            {out.ht&&<Card label="Hashtags" content={out.ht} onCopy={()=>copy("ht",out.ht)} copied={cp.ht}/>}
+            {out.vd&&<Card label="Visual Direction" content={out.vd} onCopy={()=>copy("vd",out.vd)} copied={cp.vd}/>}
+          </>}
+        </div>
+      )}
     </div>
   );
 }
 
 // ── CAMPAIGN ──────────────────────────────────────────────────────────────────
-function Campaign() {
+function Campaign({ setCtx }) {
   const [name,setName]=useState("");
   const [mech,setMech]=useState("");
   const [prods,setProds]=useState("");
@@ -215,6 +297,8 @@ function Campaign() {
   const [out,setOut]=useState(null);
   const [cp,setCp]=useState({});
   const [warns,setWarns]=useState([]);
+  const [ctxSet,setCtxSet]=useState(false);
+  const [copyAll,setCopyAll]=useState(false);
 
   function check(){
     const w=[];
@@ -227,7 +311,7 @@ function Campaign() {
 
   async function go(){
     if(!passed) return;
-    setLoading(true); setOut(null);
+    setLoading(true); setOut(null); setCtxSet(false);
     const chl=Object.entries(ch).filter(([,v])=>v).map(([k])=>k).join(", ");
     const sys=`${BRAND_DNA.identity}\n\nGenerate campaign copy. Always lead with ritual/ingredient stories, never the discount. Warmth over urgency. No em-dashes.`;
     const usr=`Generate all campaign outputs.\nCAMPAIGN: ${name}\nMECHANIC: ${mech}\nPRODUCTS: ${prods}\nGOAL: ${goal}\nANGLE: ${angle||"Permission-to-indulge, warm, ritual-forward"}\nCHANNELS: ${chl}\n\nReturn EXACTLY:\nEMAIL SUBJECT LINE OPTIONS:\n1. [option]\n2. [option]\n3. [option]\n\nEMAIL PREVIEW TEXT:\n[under 90 chars]\n\nEMAIL BODY COPY (Send 1):\n[150-200 words, ritual story first, offer second, clear CTA]\n\nEMAIL BODY COPY (Non-Opener Resend):\n[80-100 words, different angle]\n\nRESEND SUBJECT LINE OPTIONS:\n1. [option]\n2. [option]\n3. [option]\n\nSMS OPTION 1 (under 160 chars):\n[sms]\n\nSMS OPTION 2 (under 160 chars):\n[sms]\n\nMETA AD HEADLINES (3):\n1. [headline]\n2. [headline]\n3. [headline]\n\nAD BODY COPY:\n[2-3 sentences, mobile-first]\n\nCTA BUTTON TEXT:\n[ALL CAPS, 2-4 words]`;
@@ -246,12 +330,49 @@ function Campaign() {
 
   function copy(k,t){navigator.clipboard.writeText(t);setCp(p=>({...p,[k]:true}));setTimeout(()=>setCp(p=>({...p,[k]:false})),2000);}
 
+  function handleSetCtx() {
+    setCtx({ name: name || "Untitled Campaign", products: prods });
+    setCtxSet(true);
+  }
+
+  function handleDownload() {
+    if (!out) return;
+    const lines = [
+      `NECTAR LIFE — ${(name||"Campaign").toUpperCase()} COPY PACK`,
+      `Generated: ${new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}`,
+      "═".repeat(52),
+      "",
+    ];
+    if (out.raw) {
+      lines.push(out.raw);
+    } else {
+      Object.entries(out).forEach(([k, v]) => {
+        const title = k.replace(/[:()\n]/g," ").replace(/\s+/g," ").trim().toUpperCase();
+        lines.push(title);
+        lines.push("─".repeat(title.length));
+        lines.push(v);
+        lines.push("");
+      });
+    }
+    downloadText(`${(name||"campaign").toLowerCase().replace(/\s+/g,"-")}-copy-pack.txt`, lines.join("\n"));
+  }
+
+  function handleCopyAll() {
+    if (!out) return;
+    const text = out.raw
+      ? out.raw
+      : Object.entries(out).map(([k,v]) => `${k.trim()}\n${v}`).join("\n\n");
+    navigator.clipboard.writeText(text);
+    setCopyAll(true);
+    setTimeout(() => setCopyAll(false), 2000);
+  }
+
   return (
     <div>
       <p style={{fontSize:13.5,color:C.gray600,lineHeight:1.6,margin:"0 0 20px"}}>Generate email copy, SMS, and ad headlines from a campaign brief. Guardrails checked before any copy is produced.</p>
-      <Field label="Campaign Name" value={name} onChange={setName} placeholder="e.g. Mother's Day Collection, National Pet Day B2G1"/>
-      <Field label="Promo Mechanic" value={mech} onChange={setMech} placeholder="e.g. B2G1 small soaps, 25% off body care, no discount"/>
-      <Field label="Featured Products" value={prods} onChange={setProds} placeholder="e.g. Body Butter, Body Scrub, Bath Bombs" area/>
+      <Field label="Campaign Name" value={name} onChange={v=>{setName(v);setPassed(false);}} placeholder="e.g. Mother's Day Collection, National Pet Day B2G1"/>
+      <Field label="Promo Mechanic" value={mech} onChange={v=>{setMech(v);setPassed(false);}} placeholder="e.g. B2G1 small soaps, 25% off body care, no discount"/>
+      <Field label="Featured Products" value={prods} onChange={v=>{setProds(v);setPassed(false);}} placeholder="e.g. Body Butter, Body Scrub, Bath Bombs" area/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
         <Dropdown label="Primary Goal" value={goal} onChange={setGoal} opts={[{v:"revenue",l:"Revenue"},{v:"clearance",l:"Clearance / Inventory"},{v:"acquisition",l:"New Customer Acquisition"},{v:"retention",l:"Re-engagement / Retention"},{v:"values",l:"Brand Values / Education"}]}/>
         <div style={{marginBottom:16}}>
@@ -275,15 +396,38 @@ function Campaign() {
         </div>
       </div>
       <Btn onClick={go} loading={loading} disabled={!passed} label={passed?"Generate Campaign Outputs":"Run Guardrails First"}/>
-      {out&&<div style={{marginTop:24}}><div style={{height:1,background:C.gray200,marginBottom:20}}/>
-        {out.raw?<Card label="Campaign Outputs" content={out.raw} onCopy={()=>copy("raw",out.raw)} copied={cp.raw}/>:Object.entries(out).map(([k,v])=><Card key={k} label={k.replace(":","").replace("(","").replace(")","")} content={v} onCopy={()=>copy(k,v)} copied={cp[k]}/>)}
-      </div>}
+      {out&&(
+        <div style={{marginTop:24}}>
+          <div style={{height:1,background:C.gray200,marginBottom:20}}/>
+          {out.raw
+            ? <Card label="Campaign Outputs" content={out.raw} onCopy={()=>copy("raw",out.raw)} copied={cp.raw}/>
+            : Object.entries(out).map(([k,v])=><Card key={k} label={k.replace(/:|\(|\)/g,"")} content={v} onCopy={()=>copy(k,v)} copied={cp[k]}/>)
+          }
+          {/* Action toolbar — inspired by Placid/Jasper export patterns */}
+          <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+            <button onClick={handleCopyAll} style={{flex:1,minWidth:110,padding:"9px 12px",borderRadius:8,border:`1.5px solid ${copyAll?C.hotPink:C.gray200}`,background:copyAll?C.blush:C.white,color:copyAll?C.hotPink:C.gray600,fontSize:12,fontWeight:700,cursor:"pointer",transition:"all 0.15s",fontFamily:"inherit"}}>
+              {copyAll?"Copied!":"Copy All"}
+            </button>
+            <button onClick={handleDownload} style={{flex:1,minWidth:110,padding:"9px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,background:C.white,color:C.gray600,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+              Download Pack
+            </button>
+            <button onClick={handleSetCtx} style={{flex:1,minWidth:140,padding:"9px 12px",borderRadius:8,border:`1.5px solid ${ctxSet?"#34C759":C.primaryPink}`,background:ctxSet?"#F0FFF4":C.blush,color:ctxSet?"#1A7A35":C.hotPink,fontSize:12,fontWeight:700,cursor:"pointer",transition:"all 0.15s",fontFamily:"inherit"}}>
+              {ctxSet?"Active Campaign Set":"Set as Active Campaign"}
+            </button>
+          </div>
+          {ctxSet&&(
+            <p style={{margin:"8px 0 0",fontSize:11.5,color:"#1A7A35",lineHeight:1.5}}>
+              Campaign active — Social, Photo Brief, and Visuals tabs will pre-fill from this campaign.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 // ── PHOTO BRIEF ───────────────────────────────────────────────────────────────
-function PhotoBrief() {
+function PhotoBrief({ ctx }) {
   const [cname,setCname]=useState("");
   const [prods,setProds]=useState("");
   const [shot,setShot]=useState("lifestyle");
@@ -293,6 +437,12 @@ function PhotoBrief() {
   const [out,setOut]=useState(null);
   const [cp,setCp]=useState({});
   const assetMap={emailHeader:"Email header (1080px wide)",saleBanner:"Sale page banner",metaSquare:"Meta ad 1:1 (1080x1080px)",metaStory:"Meta Stories/Reels 9:16 (1080x1920px)",googleDisplay:"Google Display (300x250px)"};
+
+  function fillFromCtx() {
+    if (!ctx) return;
+    setCname(ctx.name || "");
+    setProds(ctx.products || "");
+  }
 
   async function go(){
     setLoading(true); setOut(null);
@@ -308,6 +458,7 @@ function PhotoBrief() {
   return (
     <div>
       <p style={{fontSize:13.5,color:C.gray600,lineHeight:1.6,margin:"0 0 20px"}}>Generate a camera-ready asset brief. Includes shot direction, copy overlays, asset specs, and visual references.</p>
+      <CtxBanner ctx={ctx} onFill={fillFromCtx} />
       <Field label="Campaign Name" value={cname} onChange={setCname} placeholder="e.g. Mother's Day Collection, Summer Body Care Launch"/>
       <Field label="Hero Products" value={prods} onChange={setProds} placeholder="e.g. Body Butter (BUTTER1002), Dry Body Oil, Round Bath Bombs" area/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
@@ -329,9 +480,9 @@ function PhotoBrief() {
 }
 
 // ── VISUALS ───────────────────────────────────────────────────────────────────
-function Visuals() {
-  const [key,setKey]=useState(()=>localStorage.getItem("stabilityKey")||"");
-  const [keySet,setKeySet]=useState(()=>!!localStorage.getItem("stabilityKey"));
+function Visuals({ ctx }) {
+  const [key,setKey]=useState("");
+  const [keySet,setKeySet]=useState(false);
   const [product,setProduct]=useState("");
   const [shot,setShot]=useState("lifestyle");
   const [mood,setMood]=useState("warm");
@@ -343,6 +494,11 @@ function Visuals() {
   const [prompt,setPrompt]=useState("");
   const [imgs,setImgs]=useState([]);
   const [err,setErr]=useState("");
+
+  function fillFromCtx() {
+    if (!ctx) return;
+    setProduct(ctx.products || "");
+  }
 
   const shots={
     lifestyle:"joyful lifestyle, person using product in a modern minimalist bathroom, natural window light, soft morning atmosphere, hands with pastel manicure, relaxed authentic pose, diverse skin tones",
@@ -398,20 +554,22 @@ function Visuals() {
     <div>
       <p style={{fontSize:13.5,color:C.gray600,lineHeight:1.6,margin:"0 0 20px"}}>Generate real on-brand images using AI. Powered by Stability AI. Every prompt is built from Nectar Life's photography direction.</p>
 
+      <CtxBanner ctx={ctx} onFill={fillFromCtx} />
+
       {!keySet?(
         <div style={{background:C.blush,border:`1.5px solid ${C.primaryPink}`,borderRadius:12,padding:"18px 20px",marginBottom:24}}>
           <p style={{margin:"0 0 4px",fontSize:13,fontWeight:700,color:C.charcoal}}>Stability AI API Key Required</p>
           <p style={{margin:"0 0 14px",fontSize:12.5,color:C.gray600,lineHeight:1.5}}>Get a free key at <strong>platform.stability.ai</strong>. Stored only in this browser session.</p>
           <div style={{display:"flex",gap:10}}>
             <input type="password" value={key} onChange={e=>setKey(e.target.value)} placeholder="sk-..." onKeyDown={e=>e.key==="Enter"&&(key.startsWith("sk-")?setKeySet(true):setErr("Key should start with sk-"))} style={{flex:1,padding:"10px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:13.5,fontFamily:"inherit",outline:"none"}}/>
-            <button onClick={()=>{if(key.startsWith("sk-")){localStorage.setItem("stabilityKey",key);setKeySet(true);}else setErr("Key should start with sk-");}} style={{padding:"10px 18px",borderRadius:8,background:C.hotPink,color:C.white,border:"none",fontWeight:700,fontSize:13,cursor:"pointer"}}>Save</button>
+            <button onClick={()=>{if(key.startsWith("sk-"))setKeySet(true);else setErr("Key should start with sk-");}} style={{padding:"10px 18px",borderRadius:8,background:C.hotPink,color:C.white,border:"none",fontWeight:700,fontSize:13,cursor:"pointer"}}>Save</button>
           </div>
           {err&&<p style={{margin:"8px 0 0",fontSize:12,color:"#C0392B"}}>{err}</p>}
         </div>
       ):(
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#F0FFF4",border:`1px solid #34C759`,borderRadius:8,marginBottom:20}}>
           <span style={{fontSize:12.5,color:"#1A7A35",fontWeight:600}}>Stability AI connected</span>
-          <button onClick={()=>{localStorage.removeItem("stabilityKey");setKeySet(false);setKey("");}} style={{fontSize:11.5,color:C.gray600,background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>Change key</button>
+          <button onClick={()=>{setKeySet(false);setKey("");}} style={{fontSize:11.5,color:C.gray600,background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>Change key</button>
         </div>
       )}
 
@@ -434,7 +592,7 @@ function Visuals() {
             <p style={{margin:0,fontSize:11.5,color:C.gray400}}>Edit below and regenerate, or copy for use in Midjourney or other tools.</p>
           </div>
           <textarea value={prompt} onChange={e=>setPrompt(e.target.value)} rows={4} style={{width:"100%",padding:"10px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:12.5,color:C.charcoal,resize:"vertical",fontFamily:"inherit",background:C.white,boxSizing:"border-box",outline:"none",lineHeight:1.5,marginBottom:8}}/>
-          <button onClick={regen} disabled={genImg} style={{padding:"9px 18px",borderRadius:8,background:genImg?C.gray200:C.blush,color:genImg?C.gray400:C.hotPink,border:`1.5px solid ${genImg?C.gray200:C.primaryPink}`,fontSize:13,fontWeight:700,cursor:genImg?"not-allowed":"pointer"}}>
+          <button onClick={regen} disabled={genImg} style={{padding:"9px 18px",borderRadius:8,background:genImg?C.gray200:C.blush,color:genImg?C.gray400:C.hotPink,border:`1.5px solid ${genImg?C.gray200:C.primaryPink}`,fontSize:13,fontWeight:700,cursor:genImg?"not-allowed":"pointer",fontFamily:"inherit"}}>
             {genImg?"Generating...":"Regenerate with Edited Prompt"}
           </button>
         </div>
@@ -467,14 +625,23 @@ function Visuals() {
 // ── APP SHELL ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [tab,setTab]=useState("social");
+  const [ctx,setCtx]=useState(null); // Active campaign context — flows across all tabs
+
   const tabs=[
     {id:"social",label:"Social",icon:"✦",sub:"Captions + direction"},
     {id:"campaign",label:"Campaign",icon:"◈",sub:"Email · SMS · Ads"},
     {id:"photo",label:"Photo Brief",icon:"◉",sub:"Asset brief"},
     {id:"visuals",label:"Visuals",icon:"✿",sub:"AI image generation"},
   ];
-  const Comp={social:Social,campaign:Campaign,photo:PhotoBrief,visuals:Visuals}[tab];
+
   const active=tabs.find(t=>t.id===tab);
+
+  const tabContent = {
+    social:    <Social ctx={ctx} />,
+    campaign:  <Campaign setCtx={setCtx} />,
+    photo:     <PhotoBrief ctx={ctx} />,
+    visuals:   <Visuals ctx={ctx} />,
+  }[tab];
 
   return (
     <div style={{fontFamily:"'Georgia','Times New Roman',serif",background:C.gray100,minHeight:"100vh",paddingBottom:60}}>
@@ -493,6 +660,13 @@ export default function App() {
             <div style={{width:28,height:28,borderRadius:"50%",background:`linear-gradient(135deg,${C.primaryPink},${C.coral})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:C.white,flexShrink:0}}>N</div>
             <span style={{fontSize:17,fontWeight:700,color:C.charcoal,letterSpacing:"-0.01em"}}>Nectar Studio</span>
             <span style={{fontSize:12,color:C.gray400,letterSpacing:"0.05em"}}>BEYOND SWEET</span>
+            {ctx&&(
+              <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:20,background:C.blush,border:`1px solid ${C.primaryPink}`}}>
+                <span style={{width:6,height:6,borderRadius:"50%",background:C.hotPink,display:"inline-block",flexShrink:0}}/>
+                <span style={{fontSize:11,fontWeight:700,color:C.hotPink,maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ctx.name}</span>
+                <button onClick={()=>setCtx(null)} style={{fontSize:13,color:C.gray400,background:"none",border:"none",cursor:"pointer",padding:"0 0 0 2px",lineHeight:1}}>×</button>
+              </div>
+            )}
           </div>
           <div style={{display:"flex",gap:0}}>
             {tabs.map(t=>(
@@ -515,10 +689,8 @@ export default function App() {
             </div>
           </div>
         </div>
-        <Comp/>
+        {tabContent}
       </div>
     </div>
   );
 }
-
-// 
