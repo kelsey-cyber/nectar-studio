@@ -8,6 +8,8 @@ export default async function handler(req, res) {
   if (!apiKey) {
     return res.status(500).json({ error: "Anthropic API key not configured" });
   }
+  // Temporary debug — remove after fix
+  console.log("KEY_DEBUG:", apiKey.length, apiKey.slice(0, 20), apiKey.slice(-4));
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
