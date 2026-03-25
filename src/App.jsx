@@ -71,7 +71,7 @@ async function callClaude(system, user) {
   return d.content?.[0]?.text || "Generation failed.";
 }
 
-async function generateImage(prompt, apiKey, ratio = "1:1") {
+async function generateImageStability(prompt, apiKey, ratio = "1:1") {
   const fd = new FormData();
   fd.append("prompt", prompt);
   fd.append("output_format", "jpeg");
@@ -83,6 +83,30 @@ async function generateImage(prompt, apiKey, ratio = "1:1") {
   });
   if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.message || `Error ${r.status}`); }
   return URL.createObjectURL(await r.blob());
+}
+
+async function generateImageDalle(prompt, apiKey, ratio = "1:1") {
+  const sizeMap={"1:1":"1024x1024","4:5":"1024x1024","9:16":"1024x1792","16:9":"1792x1024","3:2":"1792x1024"};
+  const r = await fetch("/api/generate-image", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "dalle", prompt, apiKey, size: sizeMap[ratio]||"1024x1024" }),
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d?.error || `Error ${r.status}`);
+  return d.url;
+}
+
+async function generateImageFal(prompt, apiKey, ratio = "1:1") {
+  const sizeMap={"1:1":"square_hd","4:5":"portrait_4_3","9:16":"portrait_16_9","16:9":"landscape_16_9","3:2":"landscape_4_3"};
+  const r = await fetch("/api/generate-image", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "fal", prompt, apiKey, imageSize: sizeMap[ratio]||"square_hd" }),
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d?.error || `Error ${r.status}`);
+  return d.url;
 }
 
 function downloadText(filename, content) {
@@ -481,8 +505,10 @@ function PhotoBrief({ ctx }) {
 
 // ── VISUALS ───────────────────────────────────────────────────────────────────
 function Visuals({ ctx }) {
-  const [key,setKey]=useState("");
-  const [keySet,setKeySet]=useState(false);
+  const [model,setModel]=useState("stability");
+  const [keys,setKeys]=useState({stability:localStorage.getItem("stabilityKey")||"",dalle:localStorage.getItem("dalleKey")||"",fal:localStorage.getItem("falKey")||""});
+  const [keysSet,setKeysSet]=useState({stability:!!localStorage.getItem("stabilityKey"),dalle:!!localStorage.getItem("dalleKey"),fal:!!localStorage.getItem("falKey")});
+  const [keyInput,setKeyInput]=useState("");
   const [product,setProduct]=useState("");
   const [shot,setShot]=useState("lifestyle");
   const [mood,setMood]=useState("warm");
@@ -495,10 +521,25 @@ function Visuals({ ctx }) {
   const [imgs,setImgs]=useState([]);
   const [err,setErr]=useState("");
 
-  function fillFromCtx() {
-    if (!ctx) return;
-    setProduct(ctx.products || "");
+  const modelCfg={
+    stability:{label:"Stability AI",badge:"platform.stability.ai",placeholder:"sk-...",validate:k=>k.startsWith("sk-"),hint:"Get a free key at platform.stability.ai",lsKey:"stabilityKey"},
+    dalle:{label:"DALL·E 3",badge:"platform.openai.com",placeholder:"sk-...",validate:k=>k.startsWith("sk-"),hint:"Get a key at platform.openai.com/api-keys",lsKey:"dalleKey"},
+    fal:{label:"Flux Pro",badge:"fal.ai/dashboard",placeholder:"xxxxxxxx-xxxx:xxxx",validate:k=>k.length>20,hint:"Get a free key at fal.ai/dashboard",lsKey:"falKey"},
+  };
+  const mc=modelCfg[model];
+
+  function fillFromCtx(){if(!ctx)return;setProduct(ctx.products||"");}
+
+  function saveKey(){
+    const k=keyInput.trim();
+    if(!mc.validate(k)){setErr(`Invalid key format for ${mc.label}.`);return;}
+    localStorage.setItem(mc.lsKey,k);
+    setKeys(p=>({...p,[model]:k}));
+    setKeysSet(p=>({...p,[model]:true}));
+    setKeyInput("");setErr("");
   }
+
+  function changeKey(){setKeysSet(p=>({...p,[model]:false}));setKeyInput(keys[model]||"");}
 
   const shots={
     lifestyle:"joyful lifestyle, person using product in a modern minimalist bathroom, natural window light, soft morning atmosphere, hands with pastel manicure, relaxed authentic pose, diverse skin tones",
@@ -507,7 +548,6 @@ function Visuals({ ctx }) {
     onfigure:"on-figure beauty shot close-up of hands applying product, relaxed hydrated skin, pastel manicure, diverse skin tone, soft natural light, modern minimalist bathroom",
     flatlay:"top-down flat lay product arrangement, cream background, subtle pink and blush props, soft natural window light, airy editorial beauty aesthetic",
   };
-
   const moods={
     warm:"warm golden tones, soft inviting morning ritual atmosphere",
     fresh:"crisp whites and creams, fresh energizing, bright natural light",
@@ -515,14 +555,13 @@ function Visuals({ ctx }) {
     playful:"vibrant and colorful, joyful energy, pops of pink and coral",
     summer:"sun-drenched warm light, golden hour glow, effortless summer skin care",
   };
-
   const ratioSizes={"1:1":{w:220,h:220},"4:5":{w:196,h:245},"9:16":{w:155,h:275},"16:9":{w:300,h:169},"3:2":{w:255,h:170}};
 
   async function go(){
-    if(!key){setErr("Enter your Stability AI API key first.");return;}
-    setErr(""); setGenPrompt(true); setImgs([]);
-    const sys=`${BRAND_DNA.photoDirection}\n\nYou generate precise Stability AI image prompts for a premium handcrafted bath and body brand. Never include faces. Focus on hands, products, ingredients, lifestyle atmosphere. Always specify: lighting, setting, color palette, mood, camera style. Output prompts as comma-separated descriptors.`;
-    const usr=`Generate a Stability AI image prompt for Nectar Life.\nPRODUCT: ${product||"body care products"}\nSHOT TYPE: ${shot} — ${shots[shot]}\nMOOD: ${mood} — ${moods[mood]}\nSEASON: ${season}\nRATIO: ${ratio}\nNOTES: ${notes||"none"}\n\nReturn EXACTLY:\nIMAGE PROMPT:\n[80-150 words, comma-separated descriptors, end with style references]\n\nNEGATIVE PROMPT:\n[Things to exclude]`;
+    if(!keysSet[model]){setErr(`Enter your ${mc.label} API key first.`);return;}
+    setErr("");setGenPrompt(true);setImgs([]);
+    const sys=`${BRAND_DNA.photoDirection}\n\nYou generate precise AI image prompts for a premium handcrafted bath and body brand. Never include faces. Focus on hands, products, ingredients, lifestyle atmosphere. Always specify: lighting, setting, color palette, mood, camera style. Output prompts as comma-separated descriptors.`;
+    const usr=`Generate an image prompt for Nectar Life.\nPRODUCT: ${product||"body care products"}\nSHOT TYPE: ${shot} — ${shots[shot]}\nMOOD: ${mood} — ${moods[mood]}\nSEASON: ${season}\nRATIO: ${ratio}\nNOTES: ${notes||"none"}\n\nReturn EXACTLY:\nIMAGE PROMPT:\n[80-150 words, comma-separated descriptors, end with style references]\n\nNEGATIVE PROMPT:\n[Things to exclude]`;
     const res=await callClaude(sys,usr);
     setGenPrompt(false);
     let p="";
@@ -531,19 +570,27 @@ function Visuals({ ctx }) {
     setPrompt(p);
     setGenImg(true);
     try{
-      const url=await generateImage(p,key,ratio);
-      setImgs(prev=>[{url,prompt:p,ratio,label:`${shot} / ${mood}`},...prev]);
-    } catch(e){setErr(`Image generation failed: ${e.message}`);}
+      const ck=keys[model];
+      let url;
+      if(model==="stability") url=await generateImageStability(p,ck,ratio);
+      else if(model==="dalle") url=await generateImageDalle(p,ck,ratio);
+      else url=await generateImageFal(p,ck,ratio);
+      setImgs(prev=>[{url,prompt:p,ratio,label:`${shot} / ${mood}`,model:mc.label},...prev]);
+    }catch(e){setErr(`Image generation failed: ${e.message}`);}
     setGenImg(false);
   }
 
   async function regen(){
-    if(!prompt||!key) return;
-    setGenImg(true); setErr("");
+    if(!prompt||!keysSet[model])return;
+    setGenImg(true);setErr("");
     try{
-      const url=await generateImage(prompt,key,ratio);
-      setImgs(prev=>[{url,prompt,ratio,label:`${shot} / ${mood}`},...prev]);
-    } catch(e){setErr(`Regeneration failed: ${e.message}`);}
+      const ck=keys[model];
+      let url;
+      if(model==="stability") url=await generateImageStability(prompt,ck,ratio);
+      else if(model==="dalle") url=await generateImageDalle(prompt,ck,ratio);
+      else url=await generateImageFal(prompt,ck,ratio);
+      setImgs(prev=>[{url,prompt,ratio,label:`${shot} / ${mood}`,model:mc.label},...prev]);
+    }catch(e){setErr(`Regeneration failed: ${e.message}`);}
     setGenImg(false);
   }
 
@@ -552,24 +599,39 @@ function Visuals({ ctx }) {
 
   return (
     <div>
-      <p style={{fontSize:13.5,color:C.gray600,lineHeight:1.6,margin:"0 0 20px"}}>Generate real on-brand images using AI. Powered by Stability AI. Every prompt is built from Nectar Life's photography direction.</p>
+      <p style={{fontSize:13.5,color:C.gray600,lineHeight:1.6,margin:"0 0 20px"}}>Generate real on-brand images using AI. Choose your model below. Every prompt is built from Nectar Life's photography direction.</p>
 
       <CtxBanner ctx={ctx} onFill={fillFromCtx} />
 
-      {!keySet?(
+      {/* Model Selector */}
+      <div style={{marginBottom:20}}>
+        <label style={{display:"block",fontSize:12,fontWeight:700,color:C.gray600,marginBottom:8,letterSpacing:"0.05em",textTransform:"uppercase"}}>Image Model</label>
+        <div style={{display:"flex",gap:8}}>
+          {Object.entries(modelCfg).map(([k,v])=>(
+            <button key={k} onClick={()=>{setModel(k);setErr("");}} style={{flex:1,padding:"10px 8px",borderRadius:9,border:`1.5px solid ${model===k?C.hotPink:C.gray200}`,background:model===k?C.blush:C.white,color:model===k?C.hotPink:C.gray600,fontSize:11.5,fontWeight:model===k?700:500,cursor:"pointer",transition:"all 0.15s",lineHeight:1.3,textAlign:"center",position:"relative"}}>
+              <span style={{display:"block",fontWeight:700}}>{v.label}</span>
+              <span style={{fontSize:9.5,color:model===k?C.coral:C.gray400,letterSpacing:"0.02em"}}>{v.badge}</span>
+              {keysSet[k]&&<span style={{position:"absolute",top:5,right:7,width:6,height:6,borderRadius:"50%",background:"#34C759",display:"block"}}/>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Key Entry */}
+      {!keysSet[model]?(
         <div style={{background:C.blush,border:`1.5px solid ${C.primaryPink}`,borderRadius:12,padding:"18px 20px",marginBottom:24}}>
-          <p style={{margin:"0 0 4px",fontSize:13,fontWeight:700,color:C.charcoal}}>Stability AI API Key Required</p>
-          <p style={{margin:"0 0 14px",fontSize:12.5,color:C.gray600,lineHeight:1.5}}>Get a free key at <strong>platform.stability.ai</strong>. Stored only in this browser session.</p>
+          <p style={{margin:"0 0 4px",fontSize:13,fontWeight:700,color:C.charcoal}}>{mc.label} API Key Required</p>
+          <p style={{margin:"0 0 14px",fontSize:12.5,color:C.gray600,lineHeight:1.5}}>{mc.hint}. Stored only in this browser.</p>
           <div style={{display:"flex",gap:10}}>
-            <input type="password" value={key} onChange={e=>setKey(e.target.value)} placeholder="sk-..." onKeyDown={e=>e.key==="Enter"&&(key.startsWith("sk-")?setKeySet(true):setErr("Key should start with sk-"))} style={{flex:1,padding:"10px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:13.5,fontFamily:"inherit",outline:"none"}}/>
-            <button onClick={()=>{if(key.startsWith("sk-"))setKeySet(true);else setErr("Key should start with sk-");}} style={{padding:"10px 18px",borderRadius:8,background:C.hotPink,color:C.white,border:"none",fontWeight:700,fontSize:13,cursor:"pointer"}}>Save</button>
+            <input type="password" value={keyInput} onChange={e=>setKeyInput(e.target.value)} placeholder={mc.placeholder} onKeyDown={e=>e.key==="Enter"&&saveKey()} style={{flex:1,padding:"10px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:13.5,fontFamily:"inherit",outline:"none"}}/>
+            <button onClick={saveKey} style={{padding:"10px 18px",borderRadius:8,background:C.hotPink,color:C.white,border:"none",fontWeight:700,fontSize:13,cursor:"pointer"}}>Save</button>
           </div>
           {err&&<p style={{margin:"8px 0 0",fontSize:12,color:"#C0392B"}}>{err}</p>}
         </div>
       ):(
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#F0FFF4",border:`1px solid #34C759`,borderRadius:8,marginBottom:20}}>
-          <span style={{fontSize:12.5,color:"#1A7A35",fontWeight:600}}>Stability AI connected</span>
-          <button onClick={()=>{setKeySet(false);setKey("");}} style={{fontSize:11.5,color:C.gray600,background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>Change key</button>
+          <span style={{fontSize:12.5,color:"#1A7A35",fontWeight:600}}>{mc.label} connected</span>
+          <button onClick={changeKey} style={{fontSize:11.5,color:C.gray600,background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>Change key</button>
         </div>
       )}
 
@@ -581,7 +643,7 @@ function Visuals({ ctx }) {
         <Dropdown label="Aspect Ratio" value={ratio} onChange={setRatio} opts={[{v:"1:1",l:"1:1 — Meta / Feed"},{v:"4:5",l:"4:5 — Instagram Portrait"},{v:"9:16",l:"9:16 — Stories / Reels"},{v:"16:9",l:"16:9 — Email Header"},{v:"3:2",l:"3:2 — Landscape"}]}/>
       </div>
       <Field label="Custom Notes" value={notes} onChange={setNotes} placeholder="e.g. dried rose petals, coral and blush palette, spring garden setting..." area/>
-      <Btn onClick={go} loading={busy} disabled={!keySet} label={genPrompt?"Crafting prompt...":genImg?"Generating image...":"Generate Image"}/>
+      <Btn onClick={go} loading={busy} disabled={!keysSet[model]} label={genPrompt?"Crafting prompt...":genImg?"Generating image...":"Generate Image"}/>
 
       {err&&!busy&&<p style={{margin:"12px 0 0",fontSize:12.5,color:"#C0392B",fontWeight:600}}>{err}</p>}
 
@@ -589,7 +651,7 @@ function Visuals({ ctx }) {
         <div style={{marginTop:16}}>
           <div style={{padding:"12px 14px",background:C.cream,borderRadius:8,border:`1px solid ${C.gray200}`,marginBottom:8}}>
             <p style={{margin:"0 0 4px",fontSize:11,fontWeight:700,color:C.gray600,letterSpacing:"0.06em",textTransform:"uppercase"}}>Generated Image Prompt</p>
-            <p style={{margin:0,fontSize:11.5,color:C.gray400}}>Edit below and regenerate, or copy for use in Midjourney or other tools.</p>
+            <p style={{margin:0,fontSize:11.5,color:C.gray400}}>Edit below and regenerate, or copy for use in other tools.</p>
           </div>
           <textarea value={prompt} onChange={e=>setPrompt(e.target.value)} rows={4} style={{width:"100%",padding:"10px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:12.5,color:C.charcoal,resize:"vertical",fontFamily:"inherit",background:C.white,boxSizing:"border-box",outline:"none",lineHeight:1.5,marginBottom:8}}/>
           <button onClick={regen} disabled={genImg} style={{padding:"9px 18px",borderRadius:8,background:genImg?C.gray200:C.blush,color:genImg?C.gray400:C.hotPink,border:`1.5px solid ${genImg?C.gray200:C.primaryPink}`,fontSize:13,fontWeight:700,cursor:genImg?"not-allowed":"pointer",fontFamily:"inherit"}}>
@@ -607,8 +669,8 @@ function Visuals({ ctx }) {
             return (
               <div key={i} style={{background:C.white,border:`1px solid ${C.gray200}`,borderRadius:12,overflow:"hidden",marginBottom:16}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 16px",background:C.cream,borderBottom:`1px solid ${C.gray200}`}}>
-                  <span style={{fontSize:11,fontWeight:700,color:C.gray600,letterSpacing:"0.06em",textTransform:"uppercase"}}>{img.label} · {img.ratio}</span>
-                  <a href={img.url} download={`nectar-${i}.jpg`} style={{fontSize:11.5,fontWeight:700,color:C.hotPink,textDecoration:"none",padding:"4px 10px",borderRadius:6,border:`1px solid ${C.primaryPink}`,background:C.blush}}>Download</a>
+                  <span style={{fontSize:11,fontWeight:700,color:C.gray600,letterSpacing:"0.06em",textTransform:"uppercase"}}>{img.label} · {img.ratio} · {img.model||"Stability AI"}</span>
+                  <a href={img.url} download={`nectar-${i}.jpg`} target="_blank" rel="noreferrer" style={{fontSize:11.5,fontWeight:700,color:C.hotPink,textDecoration:"none",padding:"4px 10px",borderRadius:6,border:`1px solid ${C.primaryPink}`,background:C.blush}}>Download</a>
                 </div>
                 <div style={{padding:20,display:"flex",justifyContent:"center",background:C.gray100}}>
                   <img src={img.url} alt={img.label} style={{width:d.w*1.4,height:d.h*1.4,objectFit:"cover",borderRadius:8,display:"block",boxShadow:"0 4px 20px rgba(0,0,0,0.10)"}}/>
