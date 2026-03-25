@@ -10,6 +10,7 @@ export default async function handler(req, res) {
   }
   // Temporary debug — remove after fix
   const keyDebug = { len: apiKey.length, start: apiKey.slice(0, 14), end: apiKey.slice(-4), hasSpaces: apiKey !== apiKey.trim() };
+  return res.status(200).json({ _debug: keyDebug });
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
