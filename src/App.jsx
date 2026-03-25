@@ -1,3 +1,8 @@
+import './test-template.js'
+import VisualGenerator from './VisualGenerator';
+
+// Add this component somewhere in your App.jsx JSX:
+<VisualGenerator />
 import { useState } from "react";
 
 const BRAND_DNA = {
@@ -515,3 +520,5 @@ export default function App() {
     </div>
   );
 }
+
+// 
