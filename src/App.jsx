@@ -61,7 +61,7 @@ async function callClaude(system, user) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-5",
       max_tokens: 1000,
       system,
       messages: [{ role: "user", content: user }],
@@ -325,8 +325,8 @@ function PhotoBrief() {
 
 // ── VISUALS ───────────────────────────────────────────────────────────────────
 function Visuals() {
-  const [key,setKey]=useState("");
-  const [keySet,setKeySet]=useState(false);
+  const [key,setKey]=useState(()=>localStorage.getItem("stabilityKey")||"");
+  const [keySet,setKeySet]=useState(()=>!!localStorage.getItem("stabilityKey"));
   const [product,setProduct]=useState("");
   const [shot,setShot]=useState("lifestyle");
   const [mood,setMood]=useState("warm");
@@ -399,14 +399,14 @@ function Visuals() {
           <p style={{margin:"0 0 14px",fontSize:12.5,color:C.gray600,lineHeight:1.5}}>Get a free key at <strong>platform.stability.ai</strong>. Stored only in this browser session.</p>
           <div style={{display:"flex",gap:10}}>
             <input type="password" value={key} onChange={e=>setKey(e.target.value)} placeholder="sk-..." onKeyDown={e=>e.key==="Enter"&&(key.startsWith("sk-")?setKeySet(true):setErr("Key should start with sk-"))} style={{flex:1,padding:"10px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:13.5,fontFamily:"inherit",outline:"none"}}/>
-            <button onClick={()=>{if(key.startsWith("sk-"))setKeySet(true);else setErr("Key should start with sk-");}} style={{padding:"10px 18px",borderRadius:8,background:C.hotPink,color:C.white,border:"none",fontWeight:700,fontSize:13,cursor:"pointer"}}>Save</button>
+            <button onClick={()=>{if(key.startsWith("sk-")){localStorage.setItem("stabilityKey",key);setKeySet(true);}else setErr("Key should start with sk-");}} style={{padding:"10px 18px",borderRadius:8,background:C.hotPink,color:C.white,border:"none",fontWeight:700,fontSize:13,cursor:"pointer"}}>Save</button>
           </div>
           {err&&<p style={{margin:"8px 0 0",fontSize:12,color:"#C0392B"}}>{err}</p>}
         </div>
       ):(
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#F0FFF4",border:`1px solid #34C759`,borderRadius:8,marginBottom:20}}>
           <span style={{fontSize:12.5,color:"#1A7A35",fontWeight:600}}>Stability AI connected</span>
-          <button onClick={()=>{setKeySet(false);setKey("");}} style={{fontSize:11.5,color:C.gray600,background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>Change key</button>
+          <button onClick={()=>{localStorage.removeItem("stabilityKey");setKeySet(false);setKey("");}} style={{fontSize:11.5,color:C.gray600,background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>Change key</button>
         </div>
       )}
 
