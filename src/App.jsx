@@ -40,6 +40,39 @@ CEO PRIORITY: Always lead with ritual stories, ingredient origin stories, and th
 - Brand colors: Pink #FCAFC0, Hot Pink #F05380, Cream #FCF4EE, Coral #EE817E, Blush #FFE3EC.
 - Never: Harsh artificial lighting, cluttered backgrounds, overly staged setups.`,
 
+  bathBombPhysics: `BATH BOMB FIZZING — VISUAL REFERENCE FOR AI PROMPTS:
+A bath bomb in water undergoes a specific, predictable visual sequence that AI models must replicate accurately:
+
+FIZZING MECHANICS:
+- The bomb sits ON TOP of the water surface, it does NOT sink immediately
+- Fizzing begins instantly at the water-contact point: rapid, fine micro-effervescence (tiny CO2 bubbles, not large soap bubbles)
+- The surface of the bomb appears to "melt" and "crackle" — like a carbonated tablet dissolving
+- The bomb slowly spins and rotates as it loses mass unevenly
+- White foam and froth accumulate at the waterline around the bomb
+- The bomb gradually shrinks over 3-5 minutes until fully dissolved
+
+COLOR DISPERSION:
+- Rich saturated color (pink, coral, lavender, teal, etc.) bleeds outward from the bomb in organic swirling tendrils
+- The color spreads in flowing, tie-dye-like plumes — NOT a uniform wash
+- Multiple colors may swirl simultaneously if the bomb is multi-colored
+- The water transitions from clear to richly pigmented starting from the center outward
+- Color swirls are visible as 3D depth in the water, not just surface color
+
+LIGHT AND TEXTURE:
+- Iridescent shimmer or glitter particles float upward and outward from the bomb
+- Dried botanicals (rose petals, calendula, chamomile) float to the surface and spread
+- The effervescence creates a fine, sparkling interference pattern on the water surface
+- Backlit or side-lit setups show the color swirls dramatically in translucent water
+- Bubbles catch light and create micro-highlights
+
+VISUAL PROMPT KEYWORDS FOR AI GENERATORS:
+Use these precise descriptors: "bath bomb actively fizzing in water", "fine micro-effervescence at waterline", "swirling pigment plumes in water", "saturated color dispersion in bathtub", "dissolving bath bomb with rising shimmer particles", "foamy waterline fizz", "organic dye tendrils spreading through clear water", "iridescent glitter rising through bath water", "dried petals floating on surface", "bomb spinning slowly as it dissolves", "effervescent crackle on bomb surface", "CO2 micro-bubbles streaming upward"
+
+WHAT TO AVOID TELLING THE AI:
+- Never just say "bath bomb in water" — AI will generate a static, already-dissolved product
+- Avoid "bubbles" alone — AI generates large soap bubbles, not fine effervescence
+- Never say "bath water" without specifying the color and fizzing action`,
+
   socialPillars: [
     { id: "ritual", label: "Ritual Story", desc: "The moment, the routine, the feeling" },
     { id: "ingredient", label: "Ingredient Origin", desc: "Where it comes from, why it matters" },
@@ -560,7 +593,8 @@ function Visuals({ ctx }) {
   async function go(){
     if(!keysSet[model]){setErr(`Enter your ${mc.label} API key first.`);return;}
     setErr("");setGenPrompt(true);setImgs([]);
-    const sys=`${BRAND_DNA.photoDirection}\n\nYou generate precise AI image prompts for a premium handcrafted bath and body brand. Never include faces. Focus on hands, products, ingredients, lifestyle atmosphere. Always specify: lighting, setting, color palette, mood, camera style. Output prompts as comma-separated descriptors.`;
+    const isBathBomb = /bath.?bomb/i.test(product||"");
+    const sys=`${BRAND_DNA.photoDirection}\n\n${isBathBomb?BRAND_DNA.bathBombPhysics+"\n\n":""}You generate precise AI image prompts for a premium handcrafted bath and body brand. Never include faces. Focus on hands, products, ingredients, lifestyle atmosphere. Always specify: lighting, setting, color palette, mood, camera style. Output prompts as comma-separated descriptors.${isBathBomb?" When the product is a bath bomb, always incorporate the fizzing physics and color dispersion language above into the prompt — this is critical for AI generators to render the fizzing action correctly.":""}`;
     const usr=`Generate an image prompt for Nectar Life.\nPRODUCT: ${product||"body care products"}\nSHOT TYPE: ${shot} — ${shots[shot]}\nMOOD: ${mood} — ${moods[mood]}\nSEASON: ${season}\nRATIO: ${ratio}\nNOTES: ${notes||"none"}\n\nReturn EXACTLY:\nIMAGE PROMPT:\n[80-150 words, comma-separated descriptors, end with style references]\n\nNEGATIVE PROMPT:\n[Things to exclude]`;
     const res=await callClaude(sys,usr);
     setGenPrompt(false);
