@@ -718,6 +718,290 @@ function Visuals({ ctx }) {
   );
 }
 
+// ── ANALYTICS ─────────────────────────────────────────────────────────────────
+
+function AnalyticsCard({ title, sub, icon, loading, error, onRefresh, connected, metrics, campaigns, campaignCols }) {
+  return (
+    <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.gray200}`,marginBottom:16,overflow:"hidden"}}>
+      <div style={{padding:"12px 16px",background:C.cream,borderBottom:`1px solid ${C.gray200}`,display:"flex",alignItems:"center",gap:8}}>
+        <span style={{fontSize:16,color:C.hotPink}}>{icon}</span>
+        <div style={{flex:1}}>
+          <p style={{margin:0,fontSize:13,fontWeight:700,color:C.charcoal}}>{title}</p>
+          <p style={{margin:0,fontSize:11,color:C.gray400}}>{sub}</p>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{width:7,height:7,borderRadius:"50%",background:connected?"#27AE60":C.gray400,display:"inline-block",flexShrink:0}}/>
+          <span style={{fontSize:11,color:connected?"#27AE60":C.gray400,whiteSpace:"nowrap"}}>{connected?"Connected":"Not connected"}</span>
+          {connected&&<button onClick={onRefresh} disabled={loading} style={{padding:"4px 12px",borderRadius:6,border:`1px solid ${C.gray200}`,background:C.white,fontSize:11,fontWeight:600,color:loading?C.gray400:C.gray600,cursor:loading?"not-allowed":"pointer",fontFamily:"inherit"}}>{loading?"Loading...":"Refresh"}</button>}
+        </div>
+      </div>
+      {loading&&<div style={{padding:20,textAlign:"center",color:C.gray400,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><Dots/><span>Fetching data...</span></div>}
+      {error&&!loading&&<p style={{margin:0,padding:"12px 16px",fontSize:12,color:"#C0392B",fontWeight:600}}>{error}</p>}
+      {!loading&&!error&&metrics&&(
+        <div style={{padding:"16px",display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",gap:10}}>
+          {metrics.map((m,i)=>(
+            <div key={i} style={{padding:"10px 12px",background:m.highlight?C.blush:C.gray100,borderRadius:8,border:`1px solid ${m.highlight?C.primaryPink:C.gray200}`}}>
+              <p style={{margin:"0 0 3px",fontSize:9.5,fontWeight:700,color:C.gray600,letterSpacing:"0.05em",textTransform:"uppercase"}}>{m.label}</p>
+              <p style={{margin:0,fontSize:18,fontWeight:700,color:m.highlight?C.hotPink:C.charcoal,lineHeight:1.1}}>{m.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {!loading&&!error&&!metrics&&connected&&<p style={{margin:0,padding:"16px",fontSize:12.5,color:C.gray400,textAlign:"center"}}>Click Refresh to load data</p>}
+      {!connected&&<p style={{margin:0,padding:"16px",fontSize:12.5,color:C.gray400,textAlign:"center"}}>Enter your API credentials in Platform Connections above</p>}
+      {!loading&&!error&&campaigns&&campaigns.length>0&&(
+        <div style={{borderTop:`1px solid ${C.gray200}`,padding:"12px 16px"}}>
+          <p style={{margin:"0 0 8px",fontSize:10,fontWeight:700,color:C.gray600,letterSpacing:"0.06em",textTransform:"uppercase"}}>Top Campaigns</p>
+          {campaigns.map((c,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:i<campaigns.length-1?`1px solid ${C.gray200}`:"none",gap:8}}>
+              <span style={{fontSize:12,color:C.charcoal,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name||"(unnamed)"}</span>
+              <div style={{display:"flex",gap:10,flexShrink:0}}>
+                {(campaignCols||[]).map(col=>(
+                  c[col.key]&&<span key={col.key} style={{fontSize:11.5,color:col.accent?C.hotPink:C.gray600,fontWeight:col.accent?700:500,whiteSpace:"nowrap"}}>{c[col.key]}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Analytics() {
+  const RANGES = { "7d":{ meta:"last_7d", kl:"last_7_days" }, "30d":{ meta:"last_30d", kl:"last_30_days" }, "90d":{ meta:"last_90d", kl:"last_90_days" } };
+  const [range,setRange] = useState("30d");
+  const [showSetup,setShowSetup] = useState(false);
+  const [cfg,setCfg] = useState({
+    metaToken: localStorage.getItem("anaMetaToken")||"",
+    metaAccountId: localStorage.getItem("anaMetaAccId")||"",
+    klaviyoKey: localStorage.getItem("anaKlaviyoKey")||"",
+  });
+  const [metaData,setMetaData] = useState(null);
+  const [emailData,setEmailData] = useState(null);
+  const [smsData,setSmsData] = useState(null);
+  const [loading,setLoading] = useState({meta:false,email:false,sms:false});
+  const [errors,setErrors] = useState({});
+  const [insights,setInsights] = useState("");
+  const [loadingInsights,setLoadingInsights] = useState(false);
+
+  const metaConnected = !!(cfg.metaToken && cfg.metaAccountId);
+  const klConnected = !!cfg.klaviyoKey;
+
+  function saveCfg(k,v) {
+    const storageKey = k==="metaToken"?"anaMetaToken":k==="metaAccountId"?"anaMetaAccId":"anaKlaviyoKey";
+    localStorage.setItem(storageKey,v);
+    setCfg(p=>({...p,[k]:v}));
+  }
+
+  async function fetchMeta() {
+    if (!metaConnected) return;
+    setLoading(p=>({...p,meta:true})); setErrors(p=>({...p,meta:""}));
+    try {
+      const r = await fetch("/api/analytics",{ method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ provider:"meta", token:cfg.metaToken, accountId:cfg.metaAccountId.replace(/^act_/,""), datePreset:RANGES[range].meta }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      setMetaData(d);
+    } catch(e) { setErrors(p=>({...p,meta:e.message})); }
+    setLoading(p=>({...p,meta:false}));
+  }
+
+  async function fetchKlaviyo(channel) {
+    if (!klConnected) return;
+    const key = channel==="email"?"email":"sms";
+    const setter = channel==="email"?setEmailData:setSmsData;
+    setLoading(p=>({...p,[key]:true})); setErrors(p=>({...p,[key]:""}));
+    try {
+      const r = await fetch("/api/analytics",{ method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ provider:"klaviyo", apiKey:cfg.klaviyoKey, channel, timeframe:RANGES[range].kl }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      setter(d);
+    } catch(e) { setErrors(p=>({...p,[key]:e.message})); }
+    setLoading(p=>({...p,[key]:false}));
+  }
+
+  function fetchAll() { fetchMeta(); fetchKlaviyo("email"); fetchKlaviyo("sms"); }
+
+  // ── Meta helpers ──
+  const mSum = metaData?.summary;
+  const spend = mSum?.spend ? parseFloat(mSum.spend) : null;
+  const findAction = (arr,type) => arr?.find(a=>a.action_type===type||a.action_type==="offsite_conversion.fb_pixel_"+type);
+  const revenue = (v=>v?parseFloat(v.value):null)(findAction(mSum?.action_values,"purchase"));
+  const purchases = (v=>v?parseFloat(v.value):null)(findAction(mSum?.actions,"purchase"));
+  const roas = spend&&revenue ? (revenue/spend).toFixed(2) : null;
+
+  // ── Klaviyo helpers ──
+  function klSum(data,stat) {
+    const rs = data?.report?.attributes?.results;
+    if (!rs) return null;
+    return rs.reduce((s,r)=>s+(parseFloat(r.statistics?.[stat])||0),0);
+  }
+  function klAvg(data,stat) {
+    const rs = data?.report?.attributes?.results;
+    if (!rs||!rs.length) return null;
+    const vals = rs.map(r=>parseFloat(r.statistics?.[stat])).filter(v=>!isNaN(v));
+    return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+  }
+  function klCampaigns(data,cols) {
+    const rs = data?.report?.attributes?.results;
+    if (!rs) return null;
+    return rs.slice(0,5).map(r=>({
+      name: r.groupings?.campaign_name,
+      ...cols.reduce((o,c)=>({...o,[c.key]:r.statistics?.[c.stat]!=null?c.fmt(r.statistics[c.stat]):null}),{})
+    }));
+  }
+  const fmt$ = v=>`$${parseFloat(v).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+  const fmtPct = v=>`${(parseFloat(v)*100).toFixed(1)}%`;
+
+  const hasData = metaData||emailData||smsData;
+
+  async function getInsights() {
+    if (!hasData) return;
+    setLoadingInsights(true);
+    const payload = {
+      meta: mSum ? { spend:`$${spend?.toFixed(2)}`, roas:roas?`${roas}x`:null, impressions:mSum.impressions, clicks:mSum.clicks, ctr:mSum.ctr, revenue:revenue?fmt$(revenue):null, purchases } : null,
+      email: emailData?.report?.attributes?.results?.length ? {
+        campaigns: emailData.report.attributes.results.length,
+        avgOpenRate: klAvg(emailData,"open_rate")!=null?fmtPct(klAvg(emailData,"open_rate")):null,
+        avgClickRate: klAvg(emailData,"click_rate")!=null?fmtPct(klAvg(emailData,"click_rate")):null,
+        totalRevenue: klSum(emailData,"revenue")!=null?fmt$(klSum(emailData,"revenue")):null,
+        totalRecipients: klSum(emailData,"recipients"),
+      } : null,
+      sms: smsData?.report?.attributes?.results?.length ? {
+        campaigns: smsData.report.attributes.results.length,
+        avgClickRate: klAvg(smsData,"click_rate")!=null?fmtPct(klAvg(smsData,"click_rate")):null,
+        totalRevenue: klSum(smsData,"revenue")!=null?fmt$(klSum(smsData,"revenue")):null,
+        totalRecipients: klSum(smsData,"recipients"),
+      } : null,
+    };
+    const sys = `${BRAND_DNA.identity}\n\nYou are a performance marketing analyst for Nectar Life. Analyze campaign data and give sharp, specific, actionable insights. Lead with the most important observation. Be direct. No fluff.`;
+    const usr = `Analyze Nectar Life's campaign performance for the last ${range.replace("d"," days")}:\n\n${JSON.stringify(payload,null,2)}\n\nReturn EXACTLY:\n\nWHAT'S WORKING:\n[2 specific observations with numbers]\n\nWHAT NEEDS ATTENTION:\n[2 specific issues with numbers]\n\nNEXT 3 ACTIONS:\n[Numbered list, specific and actionable]`;
+    const text = await callClaude(sys,usr);
+    setInsights(text);
+    setLoadingInsights(false);
+  }
+
+  return (
+    <div>
+      <p style={{fontSize:13.5,color:C.gray600,lineHeight:1.6,margin:"0 0 20px"}}>Live performance data from your paid ads, email, and SMS channels.</p>
+
+      {/* Controls */}
+      <div style={{display:"flex",gap:8,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
+        {[["7d","7 Days"],["30d","30 Days"],["90d","90 Days"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setRange(v)} style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${range===v?C.hotPink:C.gray200}`,background:range===v?C.blush:C.white,color:range===v?C.hotPink:C.gray600,fontSize:12,fontWeight:range===v?700:500,cursor:"pointer",fontFamily:"inherit"}}>Last {l}</button>
+        ))}
+        <button onClick={fetchAll} style={{marginLeft:"auto",padding:"7px 18px",borderRadius:20,background:`linear-gradient(135deg,${C.hotPink},${C.coral})`,color:C.white,border:"none",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",boxShadow:`0 2px 10px ${C.hotPink}40`}}>Refresh All</button>
+      </div>
+
+      {/* Platform connections */}
+      <div style={{marginBottom:20,background:C.white,borderRadius:10,border:`1px solid ${C.gray200}`,overflow:"hidden"}}>
+        <button onClick={()=>setShowSetup(s=>!s)} style={{width:"100%",padding:"12px 16px",background:"none",border:"none",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13,fontWeight:700,color:C.charcoal,fontFamily:"inherit"}}>
+          <span style={{display:"flex",alignItems:"center",gap:8}}>
+            Platform Connections
+            <span style={{display:"inline-flex",gap:5}}>
+              <span style={{width:7,height:7,borderRadius:"50%",background:metaConnected?"#27AE60":C.gray400,display:"inline-block"}} title="Meta Ads"/>
+              <span style={{width:7,height:7,borderRadius:"50%",background:klConnected?"#27AE60":C.gray400,display:"inline-block"}} title="Klaviyo"/>
+            </span>
+          </span>
+          <span style={{fontSize:11,color:C.gray400,fontWeight:500}}>{showSetup?"Hide":"Show"}</span>
+        </button>
+        {showSetup&&(
+          <div style={{padding:"0 16px 16px",borderTop:`1px solid ${C.gray200}`}}>
+            <div style={{paddingTop:16,marginBottom:16}}>
+              <p style={{margin:"0 0 3px",fontSize:12,fontWeight:700,color:C.charcoal,letterSpacing:"0.04em",textTransform:"uppercase"}}>Meta Ads</p>
+              <p style={{margin:"0 0 8px",fontSize:11.5,color:C.gray400,lineHeight:1.5}}>Business Manager → System Users → Generate Token with <strong>ads_read</strong> + <strong>read_insights</strong> permissions.</p>
+              <input value={cfg.metaToken} onChange={e=>saveCfg("metaToken",e.target.value)} type="password" placeholder="Meta Access Token" style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:12.5,fontFamily:"inherit",marginBottom:8,boxSizing:"border-box",outline:"none"}}/>
+              <input value={cfg.metaAccountId} onChange={e=>saveCfg("metaAccountId",e.target.value)} placeholder="Ad Account ID (numbers only, e.g. 123456789)" style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:12.5,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
+            </div>
+            <div>
+              <p style={{margin:"0 0 3px",fontSize:12,fontWeight:700,color:C.charcoal,letterSpacing:"0.04em",textTransform:"uppercase"}}>Klaviyo — Email + SMS</p>
+              <p style={{margin:"0 0 8px",fontSize:11.5,color:C.gray400,lineHeight:1.5}}>Klaviyo → Account → API Keys → Create Private API Key (Full Access).</p>
+              <input value={cfg.klaviyoKey} onChange={e=>saveCfg("klaviyoKey",e.target.value)} type="password" placeholder="Klaviyo Private API Key" style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:12.5,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Meta Ads */}
+      <AnalyticsCard
+        title="Paid Ads" sub="Meta · Facebook + Instagram"
+        icon="◈" loading={loading.meta} error={errors.meta}
+        onRefresh={fetchMeta} connected={metaConnected}
+        metrics={mSum ? [
+          { label:"Spend", value:spend!=null?`$${spend.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"-" },
+          { label:"ROAS", value:roas?`${roas}x`:"-", highlight:roas&&parseFloat(roas)>=2 },
+          { label:"Revenue", value:revenue!=null?fmt$(revenue):"-", highlight:revenue&&revenue>0 },
+          { label:"Purchases", value:purchases!=null?Math.round(purchases).toLocaleString():"-" },
+          { label:"Impressions", value:mSum.impressions?parseInt(mSum.impressions).toLocaleString():"-" },
+          { label:"Clicks", value:mSum.clicks?parseInt(mSum.clicks).toLocaleString():"-" },
+          { label:"CTR", value:mSum.ctr?`${parseFloat(mSum.ctr).toFixed(2)}%`:"-" },
+          { label:"Reach", value:mSum.reach?parseInt(mSum.reach).toLocaleString():"-" },
+        ] : null}
+        campaigns={metaData?.campaigns?.map(c=>({
+          name: c.campaign_name,
+          spend: c.spend?`$${parseFloat(c.spend).toFixed(0)}`:null,
+          ctr: c.ctr?`${parseFloat(c.ctr).toFixed(2)}% CTR`:null,
+        }))||null}
+        campaignCols={[{key:"spend",accent:false},{key:"ctr",accent:false}]}
+      />
+
+      {/* Email */}
+      <AnalyticsCard
+        title="Email" sub="Klaviyo"
+        icon="✦" loading={loading.email} error={errors.email}
+        onRefresh={()=>fetchKlaviyo("email")} connected={klConnected}
+        metrics={emailData?.report ? [
+          { label:"Recipients", value:klSum(emailData,"recipients")!=null?Math.round(klSum(emailData,"recipients")).toLocaleString():"-" },
+          { label:"Avg Open Rate", value:klAvg(emailData,"open_rate")!=null?fmtPct(klAvg(emailData,"open_rate")):"-", highlight:klAvg(emailData,"open_rate")>0.25 },
+          { label:"Avg Click Rate", value:klAvg(emailData,"click_rate")!=null?fmtPct(klAvg(emailData,"click_rate")):"-", highlight:klAvg(emailData,"click_rate")>0.03 },
+          { label:"Revenue", value:klSum(emailData,"revenue")!=null?fmt$(klSum(emailData,"revenue")):"-", highlight:klSum(emailData,"revenue")>0 },
+          { label:"Campaigns", value:emailData?.report?.attributes?.results?.length?.toString()||"-" },
+        ] : null}
+        campaigns={klCampaigns(emailData,[
+          {key:"open_rate",stat:"open_rate",fmt:fmtPct,accent:false},
+          {key:"revenue",stat:"revenue",fmt:fmt$,accent:true},
+        ])}
+        campaignCols={[{key:"open_rate",accent:false},{key:"revenue",accent:true}]}
+      />
+
+      {/* SMS */}
+      <AnalyticsCard
+        title="SMS" sub="Klaviyo"
+        icon="◉" loading={loading.sms} error={errors.sms}
+        onRefresh={()=>fetchKlaviyo("sms")} connected={klConnected}
+        metrics={smsData?.report ? [
+          { label:"Recipients", value:klSum(smsData,"recipients")!=null?Math.round(klSum(smsData,"recipients")).toLocaleString():"-" },
+          { label:"Avg Click Rate", value:klAvg(smsData,"click_rate")!=null?fmtPct(klAvg(smsData,"click_rate")):"-", highlight:klAvg(smsData,"click_rate")>0.03 },
+          { label:"Revenue", value:klSum(smsData,"revenue")!=null?fmt$(klSum(smsData,"revenue")):"-", highlight:klSum(smsData,"revenue")>0 },
+          { label:"Campaigns", value:smsData?.report?.attributes?.results?.length?.toString()||"-" },
+        ] : null}
+        campaigns={klCampaigns(smsData,[
+          {key:"click_rate",stat:"click_rate",fmt:fmtPct,accent:false},
+          {key:"revenue",stat:"revenue",fmt:fmt$,accent:true},
+        ])}
+        campaignCols={[{key:"click_rate",accent:false},{key:"revenue",accent:true}]}
+      />
+
+      {/* AI Insights */}
+      {hasData&&(
+        <div style={{marginTop:8}}>
+          <button onClick={getInsights} disabled={loadingInsights} style={{width:"100%",padding:"13px 20px",background:loadingInsights?C.gray200:`linear-gradient(135deg,${C.hotPink},${C.coral})`,color:loadingInsights?C.gray400:C.white,border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:loadingInsights?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:loadingInsights?"none":`0 4px 16px ${C.hotPink}40`,fontFamily:"inherit",letterSpacing:"0.04em"}}>
+            {loadingInsights?<><Dots/><span style={{fontSize:13}}>Analyzing campaigns...</span></>:"✦ Generate AI Insights"}
+          </button>
+          {insights&&(
+            <div style={{marginTop:14,padding:"16px 18px",background:C.white,borderRadius:10,border:`1px solid ${C.gray200}`}}>
+              <p style={{margin:"0 0 10px",fontSize:11,fontWeight:700,color:C.gray600,letterSpacing:"0.06em",textTransform:"uppercase"}}>AI Performance Analysis</p>
+              <pre style={{margin:0,fontSize:13.5,color:C.charcoal,whiteSpace:"pre-wrap",fontFamily:"inherit",lineHeight:1.75}}>{insights}</pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── APP SHELL ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [tab,setTab]=useState("social");
@@ -727,7 +1011,8 @@ export default function App() {
     {id:"social",label:"Social",icon:"✦",sub:"Captions + direction"},
     {id:"campaign",label:"Campaign",icon:"◈",sub:"Email · SMS · Ads"},
     {id:"photo",label:"Photo Brief",icon:"◉",sub:"Asset brief"},
-    {id:"visuals",label:"Visuals",icon:"✿",sub:"AI image generation"},
+    {id:"visuals",label:"Visuals",icon:"✿",sub:"AI image gen"},
+    {id:"analytics",label:"Analytics",icon:"▲",sub:"Live performance"},
   ];
 
   const active=tabs.find(t=>t.id===tab);
@@ -737,6 +1022,7 @@ export default function App() {
     campaign:  <Campaign setCtx={setCtx} />,
     photo:     <PhotoBrief ctx={ctx} />,
     visuals:   <Visuals ctx={ctx} />,
+    analytics: <Analytics />,
   }[tab];
 
   return (
