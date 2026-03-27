@@ -82,6 +82,80 @@ WHAT TO AVOID TELLING THE AI:
   ],
 };
 
+const NECTAR_PLAYBOOK = `NECTAR LIFE PERFORMANCE PLAYBOOK — Built from real campaign data (Dec 2025 – Mar 2026)
+
+## EMAIL (Klaviyo — 90 days)
+
+SEGMENTATION RULES:
+- Super Engaged sends (~2k recipients): 60–79% open rate, 0.25–0.44% conversion — ALWAYS segment before blasting
+- Intermediary Engaged: 63–72% open rate — strong secondary tier
+- All Opt In blasts (40k+ recipients): low conversion (0.06%) but highest absolute revenue ($1,943 on 60% OFF send) — use only for major events
+- Engaged 180 (~12k): outperforms All Opt In on rate, use for mid-tier sends
+
+TOP CONVERTING EMAIL TYPES (by conversion rate):
+1. Transactional / policy updates (Shipping Change): 2.86% conversion — informational emails convert extremely well, don't skip them
+2. Targeted product launches to Super Engaged (Berry Rose, Valentine's): 0.25–0.44% conversion
+3. Last Chance / urgency sends to Super Engaged (MLK Last Chance): 0.44% conversion, $747 revenue from 2k recipients
+
+WHAT WORKS IN SUBJECT LINES:
+- Specific product names ("Berry Rose", "Valentine's") outperform generic subject lines
+- Last Chance / urgency framing works on Super Engaged — not needed on cold lists
+- Face Care campaigns hit 79% open on reminder segments — reminder sequencing is high value
+
+WHAT TO AVOID:
+- Broad blasts without segmentation on standard campaigns — high deliveries, low conversion
+- "Scrub vs Soak" editorial framing: 0.01% conversion on 83k recipients — avoid editorial/educational framing for conversion campaigns
+
+## FLOWS (Klaviyo — last 30 days)
+
+TOP FLOWS (do not turn off, do not edit without testing):
+1. Abandoned Cart Email 1: 45–52% open rate, 1.82–1.85% conversion — highest ROI flow in the account
+2. Abandoned Cart SMS: 2.13% conversion — SMS follow-up after email is additive, keep both active
+3. Birthday / Loyalty Email: 77.8% open rate, 5.56% conversion rate — best converting flow message in entire account
+   → Only 18 recipients in period — PRIORITY: grow loyalty program enrollment to scale this
+
+FLOW SEQUENCING THAT WORKS:
+- Abandoned Cart: Email → Email → SMS sequence is proven (all three variants convert)
+- Birthday timing: timely, personal = massive lift
+
+## META ADS (last 30 days: Feb 25 – Mar 26, 2026)
+
+CAMPAIGN WINNER — USE AS TEMPLATE:
+- WKND TOF Catalogue CBO: 4.44x ROAS, $15.12 cost per purchase, 99 purchases, $1,497 spend
+- CPM $11.21 — most efficient CPM in account
+- Rule: Catalogue CBO at TOF beats all other structures. Scale budget here first.
+
+UNDERPERFORMERS — DO NOT SCALE:
+- Creative Test ABO: 1.45x ROAS, $54 cost per purchase — ABO underperforms CBO consistently
+- Adv+ All Creative Testing CBO: 1.15x ROAS, $61 cost per purchase — broad Adv+ not efficient
+- New Product Launch CBO: 0.69x ROAS — product launches don't convert cold traffic, gate to warm audiences
+
+PROMOTIONAL CAMPAIGNS:
+- B2G1 Easter Sale CBO: 1.99x ROAS — B2G1 mechanic works at 2x+ ROAS, is viable for scale
+- B2G1 ABO: 1.36x ROAS — same offer, worse structure. Always use CBO for promos.
+
+STRUCTURE RULES:
+- CBO always outperforms ABO for this account
+- TOF Catalogue is the evergreen engine — keep it funded above all others
+- B2G1 is the best promotional mechanic (vs. % off) based on ROAS data
+
+## PRODUCTS (Shopify — top converting landing pages, 90 days)
+
+FEATURE THESE IN ADS AND EMAILS FIRST:
+1. Sugar Plum Whipped Soap: 16.67% conversion
+2. Sugar Plum Snowman Bath Bomb: 16.67% conversion
+3. Jumbo Shea Moisturizing Body Butter: 13.04% conversion
+4. Essential Oil Benefit Bomb (Soothe/Recover/Magnesium): 12.50% conversion
+5. Customizable Shea Body Butter 16oz Mix & Match: 8.19% conversion — high conversion + customization = strong hook
+6. Sweet Indulgence Gift Set: 6.78% conversion
+7. Ultra Hydrating Face Cream 50ml: 6.49% conversion
+
+AVOID AS COLD TRAFFIC ENTRY POINTS:
+- Collections pages, gift sets with 0% conversion — they leak traffic. Send to product PDPs, not collections.
+- Custom body lotion, shower steamers, shave kits: 0% conversion in period
+
+CATALOGUE ADS: Prioritize Whipped Soaps, Body Butter, Essential Oil Bath Bombs in product feed — these close.`;
+
 const C = {
   primaryPink: "#FCAFC0", hotPink: "#F05380", cream: "#FCF4EE",
   coral: "#EE817E", blush: "#FFE3EC", charcoal: "#434343",
@@ -94,8 +168,8 @@ async function callClaude(system, user) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
-      max_tokens: 1000,
+      model: "claude-sonnet-4-6",
+      max_tokens: 1500,
       system,
       messages: [{ role: "user", content: user }],
     }),
@@ -854,6 +928,8 @@ function Analytics() {
 
   const [extending,setExtending] = useState(false);
   const [extendMsg,setExtendMsg] = useState("");
+  const [playbook,setPlaybook] = useState(()=>localStorage.getItem("anaPlaybook")||NECTAR_PLAYBOOK);
+  const [updatingPlaybook,setUpdatingPlaybook] = useState(false);
 
   const metaConnected = !!(cfg.metaToken && cfg.metaAccountId);
   const klConnected = !!cfg.klaviyoKey;
@@ -955,6 +1031,35 @@ function Analytics() {
 
   const hasData = metaData||emailData||smsData;
 
+  function buildCampaignDump() {
+    const emailCamps = emailData?.report?.attributes?.results?.map(r=>{
+      const name = r.groupings?.campaign_name || emailData.campaigns?.find(c=>c.id===r.groupings?.campaign_id)?.attributes?.name || "Unknown";
+      return { name, open_rate: r.statistics?.open_rate, click_rate: r.statistics?.click_rate, delivered: r.statistics?.delivered };
+    }) || [];
+    const smsCamps = smsData?.report?.attributes?.results?.map(r=>{
+      const name = r.groupings?.campaign_name || smsData.campaigns?.find(c=>c.id===r.groupings?.campaign_id)?.attributes?.name || "Unknown";
+      return { name, click_rate: r.statistics?.click_rate, delivered: r.statistics?.delivered };
+    }) || [];
+    const metaCamps = metaData?.campaigns?.map(c=>{
+      const cRev = (v=>v?parseFloat(v.value):null)(findAction(c?.action_values,"purchase"));
+      const cSpend = c.spend?parseFloat(c.spend):null;
+      return { name: c.campaign_name, spend: cSpend, roas: cSpend&&cRev?(cRev/cSpend):null, ctr: c.ctr?parseFloat(c.ctr):null };
+    }) || [];
+    return { email: emailCamps, sms: smsCamps, meta: metaCamps };
+  }
+
+  async function updatePlaybook() {
+    if (!hasData) return;
+    setUpdatingPlaybook(true);
+    const dump = buildCampaignDump();
+    const sys = `You are a performance marketing analyst for Nectar Life (nectarusa.com) — a handcrafted, plant-based bath and body brand. Your job is to extract a reusable playbook of what actually works for this brand based on real campaign data.`;
+    const usr = `Here is Nectar Life's real campaign performance data across Meta Ads, Email, and SMS:\n\n${JSON.stringify(dump,null,2)}\n\nExtract a performance playbook. Identify:\n- Which campaign types/names/themes performed best and why\n- Patterns in what drives high open rates, click rates, ROAS\n- Specific offers, framing styles, or timing patterns that outperform\n- What underperforms and should be avoided\n\nWrite this as a concise bulleted playbook titled "NECTAR LIFE PERFORMANCE PLAYBOOK". Be specific with numbers. This will be used to guide future campaign decisions.`;
+    const text = await callClaude(sys, usr);
+    setPlaybook(text);
+    localStorage.setItem("anaPlaybook", text);
+    setUpdatingPlaybook(false);
+  }
+
   async function getInsights() {
     if (!hasData) return;
     setLoadingInsights(true);
@@ -965,15 +1070,25 @@ function Analytics() {
         avgOpenRate: klAvg(emailData,"open_rate")!=null?fmtPct(klAvg(emailData,"open_rate")):null,
         avgClickRate: klAvg(emailData,"click_rate")!=null?fmtPct(klAvg(emailData,"click_rate")):null,
         totalRecipients: klSum(emailData,"recipients"),
+        topCampaigns: emailData.report.attributes.results.slice(0,5).map(r=>({
+          name: r.groupings?.campaign_name || emailData.campaigns?.find(c=>c.id===r.groupings?.campaign_id)?.attributes?.name,
+          open_rate: r.statistics?.open_rate,
+          click_rate: r.statistics?.click_rate,
+        })),
       } : null,
       sms: smsData?.report?.attributes?.results?.length ? {
         campaigns: smsData.report.attributes.results.length,
         avgClickRate: klAvg(smsData,"click_rate")!=null?fmtPct(klAvg(smsData,"click_rate")):null,
         totalRecipients: klSum(smsData,"recipients"),
+        topCampaigns: smsData.report.attributes.results.slice(0,5).map(r=>({
+          name: r.groupings?.campaign_name || smsData.campaigns?.find(c=>c.id===r.groupings?.campaign_id)?.attributes?.name,
+          click_rate: r.statistics?.click_rate,
+        })),
       } : null,
     };
-    const sys = `${BRAND_DNA.identity}\n\nYou are a performance marketing analyst for Nectar Life. Analyze campaign data and give sharp, specific, actionable insights. Lead with the most important observation. Be direct. No fluff.`;
-    const usr = `Analyze Nectar Life's campaign performance for the last ${range.replace("d"," days")}:\n\n${JSON.stringify(payload,null,2)}\n\nReturn EXACTLY:\n\nWHAT'S WORKING:\n[2 specific observations with numbers]\n\nWHAT NEEDS ATTENTION:\n[2 specific issues with numbers]\n\nNEXT 3 ACTIONS:\n[Numbered list, specific and actionable]`;
+    const playbookSection = playbook ? `\n\n${playbook}` : "";
+    const sys = `${BRAND_DNA.identity}\n\nYou are a blunt, data-driven performance marketing analyst for Nectar Life. You have access to the brand's full historical playbook of what has and hasn't worked. Your job is to give HARD DIRECTIVES — specific actions the team must take, based on proven patterns from the playbook. Do NOT give generic marketing advice. Every recommendation must reference a specific number or pattern from the playbook or the current data. If the current data contradicts the playbook, call it out.${playbookSection}`;
+    const usr = `Analyze Nectar Life's live campaign performance for the last ${range.replace("d"," days")}:\n\n${JSON.stringify(payload,null,2)}\n\nReturn EXACTLY this format:\n\nWHAT'S WORKING:\n[2 observations with specific numbers and campaign names]\n\nWHAT NEEDS ATTENTION:\n[2 issues with specific numbers]\n\nDO THIS NOW (3 hard directives):\n[Numbered — each must be a specific action tied to a proven playbook pattern, e.g. "Move budget from X to Y because catalogue CBO has historically delivered 4.4x ROAS vs 1.4x on ABO"]`;
     const text = await callClaude(sys,usr);
     setInsights(text);
     setLoadingInsights(false);
@@ -1143,6 +1258,24 @@ function Analytics() {
       {/* AI Insights */}
       {hasData&&(
         <div style={{marginTop:8}}>
+          {/* Playbook */}
+          <div style={{marginBottom:10,background:C.white,borderRadius:10,border:`1px solid ${C.gray200}`,overflow:"hidden"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px"}}>
+              <div>
+                <span style={{fontSize:13,fontWeight:700,color:C.charcoal}}>Performance Playbook</span>
+                <span style={{fontSize:11.5,color:C.gray400,marginLeft:8}}>{playbook?"Built from your campaign history":"No playbook yet — update to learn what works"}</span>
+              </div>
+              <button onClick={updatePlaybook} disabled={updatingPlaybook} style={{padding:"6px 14px",borderRadius:7,background:updatingPlaybook?C.gray200:C.blush,color:updatingPlaybook?C.gray400:C.hotPink,border:`1.5px solid ${updatingPlaybook?C.gray200:C.hotPink}`,fontSize:12,fontWeight:700,cursor:updatingPlaybook?"not-allowed":"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                {updatingPlaybook?<><Dots/> Analyzing...</>:"↺ Update Playbook"}
+              </button>
+            </div>
+            {playbook&&(
+              <div style={{borderTop:`1px solid ${C.gray200}`,padding:"12px 16px"}}>
+                <pre style={{margin:0,fontSize:12,color:C.charcoal,whiteSpace:"pre-wrap",fontFamily:"inherit",lineHeight:1.65,maxHeight:180,overflowY:"auto"}}>{playbook}</pre>
+              </div>
+            )}
+          </div>
+
           <button onClick={getInsights} disabled={loadingInsights} style={{width:"100%",padding:"13px 20px",background:loadingInsights?C.gray200:`linear-gradient(135deg,${C.hotPink},${C.coral})`,color:loadingInsights?C.gray400:C.white,border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:loadingInsights?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:loadingInsights?"none":`0 4px 16px ${C.hotPink}40`,fontFamily:"inherit",letterSpacing:"0.04em"}}>
             {loadingInsights?<><Dots/><span style={{fontSize:13}}>Analyzing campaigns...</span></>:"✦ Generate AI Insights"}
           </button>
