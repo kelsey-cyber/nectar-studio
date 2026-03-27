@@ -720,50 +720,86 @@ function Visuals({ ctx }) {
 
 // ── ANALYTICS ─────────────────────────────────────────────────────────────────
 
-function AnalyticsCard({ title, sub, icon, loading, error, onRefresh, connected, metrics, campaigns, campaignCols }) {
+const AN = {
+  spend:   { color:"#2563EB", bg:"#EFF6FF" },
+  roas:    { color:"#16A34A", bg:"#F0FDF4" },
+  ctr:     { color:"#D97706", bg:"#FFFBEB" },
+  purchase:{ color:"#0891B2", bg:"#ECFEFF" },
+  impr:    { color:"#7C3AED", bg:"#F5F3FF" },
+  reach:   { color:"#DB2777", bg:"#FDF2F8" },
+  email:   { color:"#EA4C89", bg:"#FFF0F6" },
+  click:   { color:"#D97706", bg:"#FFFBEB" },
+  sms:     { color:"#0891B2", bg:"#ECFEFF" },
+};
+
+function KpiCard({ label, value, scheme, loading }) {
+  const s = AN[scheme]||{color:C.hotPink,bg:C.blush};
   return (
-    <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.gray200}`,marginBottom:16,overflow:"hidden"}}>
-      <div style={{padding:"12px 16px",background:C.cream,borderBottom:`1px solid ${C.gray200}`,display:"flex",alignItems:"center",gap:8}}>
-        <span style={{fontSize:16,color:C.hotPink}}>{icon}</span>
-        <div style={{flex:1}}>
-          <p style={{margin:0,fontSize:13,fontWeight:700,color:C.charcoal}}>{title}</p>
-          <p style={{margin:0,fontSize:11,color:C.gray400}}>{sub}</p>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <span style={{width:7,height:7,borderRadius:"50%",background:connected?"#27AE60":C.gray400,display:"inline-block",flexShrink:0}}/>
-          <span style={{fontSize:11,color:connected?"#27AE60":C.gray400,whiteSpace:"nowrap"}}>{connected?"Connected":"Not connected"}</span>
-          {connected&&<button onClick={onRefresh} disabled={loading} style={{padding:"4px 12px",borderRadius:6,border:`1px solid ${C.gray200}`,background:C.white,fontSize:11,fontWeight:600,color:loading?C.gray400:C.gray600,cursor:loading?"not-allowed":"pointer",fontFamily:"inherit"}}>{loading?"Loading...":"Refresh"}</button>}
-        </div>
+    <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.gray200}`,padding:"14px 16px",flex:"1 1 90px",minWidth:0}}>
+      <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:6}}>
+        <span style={{width:8,height:8,borderRadius:2,background:s.color,display:"inline-block",flexShrink:0}}/>
+        <span style={{fontSize:10,color:C.gray600,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</span>
       </div>
-      {loading&&<div style={{padding:20,textAlign:"center",color:C.gray400,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><Dots/><span>Fetching data...</span></div>}
-      {error&&!loading&&<p style={{margin:0,padding:"12px 16px",fontSize:12,color:"#C0392B",fontWeight:600}}>{error}</p>}
-      {!loading&&!error&&metrics&&(
-        <div style={{padding:"16px",display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",gap:10}}>
-          {metrics.map((m,i)=>(
-            <div key={i} style={{padding:"10px 12px",background:m.highlight?C.blush:C.gray100,borderRadius:8,border:`1px solid ${m.highlight?C.primaryPink:C.gray200}`}}>
-              <p style={{margin:"0 0 3px",fontSize:9.5,fontWeight:700,color:C.gray600,letterSpacing:"0.05em",textTransform:"uppercase"}}>{m.label}</p>
-              <p style={{margin:0,fontSize:18,fontWeight:700,color:m.highlight?C.hotPink:C.charcoal,lineHeight:1.1}}>{m.value}</p>
-            </div>
+      {loading
+        ? <div style={{height:24,width:60,background:C.gray200,borderRadius:4,animation:"pulse 1.2s ease-in-out infinite"}}/>
+        : <p style={{margin:0,fontSize:20,fontWeight:700,color:"#111827",fontFamily:"system-ui,-apple-system,sans-serif",lineHeight:1.1}}>{value||"—"}</p>
+      }
+    </div>
+  );
+}
+
+function SectionHeader({ title, sub, connected, loading, onRefresh }) {
+  return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+      <div>
+        <span style={{fontSize:14,fontWeight:700,color:C.charcoal}}>{title}</span>
+        <span style={{fontSize:11.5,color:C.gray400,marginLeft:8}}>{sub}</span>
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <span style={{width:7,height:7,borderRadius:"50%",background:connected?"#16A34A":C.gray400,display:"inline-block"}}/>
+        <span style={{fontSize:11,color:connected?"#16A34A":C.gray400}}>{connected?"Connected":"Not connected"}</span>
+        {connected&&<button onClick={onRefresh} disabled={loading} style={{padding:"4px 12px",borderRadius:6,border:`1px solid ${C.gray200}`,background:C.white,fontSize:11,fontWeight:600,color:loading?C.gray400:C.charcoal,cursor:loading?"not-allowed":"pointer",fontFamily:"inherit"}}>{loading?"Loading...":"Refresh"}</button>}
+      </div>
+    </div>
+  );
+}
+
+function CampaignTable({ columns, rows }) {
+  if (!rows||!rows.length) return null;
+  return (
+    <div style={{overflowX:"auto",marginTop:14}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,fontFamily:"system-ui,-apple-system,sans-serif"}}>
+        <thead>
+          <tr style={{borderBottom:`2px solid ${C.gray200}`}}>
+            <th style={{textAlign:"left",padding:"8px 10px",fontSize:10,fontWeight:700,color:C.gray600,letterSpacing:"0.05em",textTransform:"uppercase",whiteSpace:"nowrap"}}>Campaign</th>
+            {columns.map(col=>(
+              <th key={col.key} style={{textAlign:"right",padding:"8px 10px",fontSize:10,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",whiteSpace:"nowrap",color:AN[col.scheme]?.color||C.gray600}}>
+                <span style={{display:"inline-flex",alignItems:"center",gap:4}}>
+                  <span style={{width:6,height:6,borderRadius:1,background:AN[col.scheme]?.color||C.gray400,display:"inline-block"}}/>
+                  {col.label}
+                </span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row,i)=>(
+            <tr key={i} style={{borderBottom:`1px solid ${C.gray200}`,background:i%2===0?C.white:"#FAFAF9"}}>
+              <td style={{padding:"10px 10px",color:C.charcoal,maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{row.name||"(unnamed)"}</td>
+              {columns.map(col=>{
+                const val = row[col.key];
+                const s = AN[col.scheme]||{};
+                const hi = col.highlight && val && col.highlight(row);
+                return (
+                  <td key={col.key} style={{textAlign:"right",padding:"10px 10px",fontWeight:600,whiteSpace:"nowrap",background:hi?s.bg:"transparent",color:hi?s.color:C.charcoal,borderRadius:hi?4:0}}>
+                    {val||"—"}
+                  </td>
+                );
+              })}
+            </tr>
           ))}
-        </div>
-      )}
-      {!loading&&!error&&!metrics&&connected&&<p style={{margin:0,padding:"16px",fontSize:12.5,color:C.gray400,textAlign:"center"}}>Click Refresh to load data</p>}
-      {!connected&&<p style={{margin:0,padding:"16px",fontSize:12.5,color:C.gray400,textAlign:"center"}}>Enter your API credentials in Platform Connections above</p>}
-      {!loading&&!error&&campaigns&&campaigns.length>0&&(
-        <div style={{borderTop:`1px solid ${C.gray200}`,padding:"12px 16px"}}>
-          <p style={{margin:"0 0 8px",fontSize:10,fontWeight:700,color:C.gray600,letterSpacing:"0.06em",textTransform:"uppercase"}}>Top Campaigns</p>
-          {campaigns.map((c,i)=>(
-            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:i<campaigns.length-1?`1px solid ${C.gray200}`:"none",gap:8}}>
-              <span style={{fontSize:12,color:C.charcoal,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name||"(unnamed)"}</span>
-              <div style={{display:"flex",gap:10,flexShrink:0}}>
-                {(campaignCols||[]).map(col=>(
-                  c[col.key]&&<span key={col.key} style={{fontSize:11.5,color:col.accent?C.hotPink:C.gray600,fontWeight:col.accent?700:500,whiteSpace:"nowrap"}}>{c[col.key]}</span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -885,16 +921,61 @@ function Analytics() {
     setLoadingInsights(false);
   }
 
+  const metaCols = [
+    { key:"spend",  label:"Spend",      scheme:"spend",    highlight: r=>r.spend },
+    { key:"roas",   label:"ROAS",       scheme:"roas",     highlight: r=>r.roasRaw&&parseFloat(r.roasRaw)>=2 },
+    { key:"ctr",    label:"CTR",        scheme:"ctr",      highlight: r=>r.ctrRaw&&parseFloat(r.ctrRaw)>=1 },
+    { key:"purchases", label:"Purchases", scheme:"purchase", highlight: r=>r.purchases },
+  ];
+
+  const metaRows = metaData?.campaigns?.map(c=>{
+    const cRev = (v=>v?parseFloat(v.value):null)(findAction(c?.action_values,"purchase"));
+    const cSpend = c.spend?parseFloat(c.spend):null;
+    const cRoas = cSpend&&cRev ? (cRev/cSpend) : null;
+    const cPurch = (v=>v?parseFloat(v.value):null)(findAction(c?.actions,"purchase"));
+    return {
+      name: c.campaign_name,
+      spend: cSpend!=null?`$${cSpend.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0})}`:null,
+      roas: cRoas!=null?`${cRoas.toFixed(2)}x`:null, roasRaw: cRoas,
+      ctr: c.ctr?`${parseFloat(c.ctr).toFixed(2)}%`:null, ctrRaw: c.ctr,
+      purchases: cPurch!=null?Math.round(cPurch).toString():null,
+    };
+  })||null;
+
+  const emailRows = emailData?.report
+    ? klCampaigns(emailData,[
+        {key:"open_rate",stat:"open_rate",fmt:fmtPct},
+        {key:"click_rate",stat:"click_rate",fmt:fmtPct},
+        {key:"delivered",stat:"delivered",fmt:v=>Math.round(v).toLocaleString()},
+      ])
+    : emailData?.campaigns?.slice(0,8).map(c=>({
+        name: c.attributes?.name,
+        sent: c.attributes?.send_time?new Date(c.attributes.send_time).toLocaleDateString():(c.attributes?.status||"—"),
+      }))||null;
+
+  const emailCols = emailData?.report
+    ? [
+        {key:"open_rate",  label:"Open Rate",  scheme:"email",  highlight:r=>r.open_rateRaw&&parseFloat(r.open_rateRaw)>0.25},
+        {key:"click_rate", label:"Click Rate", scheme:"click",  highlight:r=>r.click_rateRaw&&parseFloat(r.click_rateRaw)>0.03},
+        {key:"delivered",  label:"Delivered",  scheme:"impr",   highlight:null},
+      ]
+    : [{key:"sent", label:"Sent", scheme:"email", highlight:null}];
+
+  const smsCols = [{key:"sent",label:"Date",scheme:"sms",highlight:null}];
+  const smsRows = smsData?.campaigns?.slice(0,8).map(c=>({
+    name: c.attributes?.name,
+    sent: c.attributes?.send_time?new Date(c.attributes.send_time).toLocaleDateString():(c.attributes?.status||"—"),
+  }))||null;
+
   return (
     <div>
-      <p style={{fontSize:13.5,color:C.gray600,lineHeight:1.6,margin:"0 0 20px"}}>Live performance data from your paid ads, email, and SMS channels.</p>
-
-      {/* Controls */}
+      {/* Top bar */}
       <div style={{display:"flex",gap:8,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
-        {[["7d","7 Days"],["30d","30 Days"],["90d","90 Days"]].map(([v,l])=>(
-          <button key={v} onClick={()=>setRange(v)} style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${range===v?C.hotPink:C.gray200}`,background:range===v?C.blush:C.white,color:range===v?C.hotPink:C.gray600,fontSize:12,fontWeight:range===v?700:500,cursor:"pointer",fontFamily:"inherit"}}>Last {l}</button>
+        <span style={{fontSize:15,fontWeight:700,color:C.charcoal,flex:1}}>Performance</span>
+        {[["7d","7d"],["30d","30d"],["90d","90d"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setRange(v)} style={{padding:"5px 13px",borderRadius:6,border:`1.5px solid ${range===v?C.hotPink:C.gray200}`,background:range===v?C.blush:C.white,color:range===v?C.hotPink:C.gray600,fontSize:12,fontWeight:range===v?700:500,cursor:"pointer",fontFamily:"inherit"}}>{l}</button>
         ))}
-        <button onClick={fetchAll} style={{marginLeft:"auto",padding:"7px 18px",borderRadius:20,background:`linear-gradient(135deg,${C.hotPink},${C.coral})`,color:C.white,border:"none",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",boxShadow:`0 2px 10px ${C.hotPink}40`}}>Refresh All</button>
+        <button onClick={fetchAll} style={{padding:"6px 16px",borderRadius:6,background:`linear-gradient(135deg,${C.hotPink},${C.coral})`,color:C.white,border:"none",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Refresh All</button>
       </div>
 
       {/* Platform connections */}
@@ -903,8 +984,8 @@ function Analytics() {
           <span style={{display:"flex",alignItems:"center",gap:8}}>
             Platform Connections
             <span style={{display:"inline-flex",gap:5}}>
-              <span style={{width:7,height:7,borderRadius:"50%",background:metaConnected?"#27AE60":C.gray400,display:"inline-block"}} title="Meta Ads"/>
-              <span style={{width:7,height:7,borderRadius:"50%",background:klConnected?"#27AE60":C.gray400,display:"inline-block"}} title="Klaviyo"/>
+              <span style={{width:7,height:7,borderRadius:"50%",background:metaConnected?"#16A34A":C.gray400,display:"inline-block"}}/>
+              <span style={{width:7,height:7,borderRadius:"50%",background:klConnected?"#16A34A":C.gray400,display:"inline-block"}}/>
             </span>
           </span>
           <span style={{fontSize:11,color:C.gray400,fontWeight:500}}>{showSetup?"Hide":"Show"}</span>
@@ -912,80 +993,63 @@ function Analytics() {
         {showSetup&&(
           <div style={{padding:"0 16px 16px",borderTop:`1px solid ${C.gray200}`}}>
             <div style={{paddingTop:16,marginBottom:16}}>
-              <p style={{margin:"0 0 3px",fontSize:12,fontWeight:700,color:C.charcoal,letterSpacing:"0.04em",textTransform:"uppercase"}}>Meta Ads</p>
-              <p style={{margin:"0 0 8px",fontSize:11.5,color:C.gray400,lineHeight:1.5}}>Business Manager → System Users → Generate Token with <strong>ads_read</strong> + <strong>read_insights</strong> permissions.</p>
+              <p style={{margin:"0 0 3px",fontSize:11,fontWeight:700,color:C.charcoal,letterSpacing:"0.05em",textTransform:"uppercase"}}>Meta Ads</p>
+              <p style={{margin:"0 0 8px",fontSize:11.5,color:C.gray400,lineHeight:1.5}}>Graph API Explorer → generate token with <strong>ads_read</strong> → extend via Token Debugger for 60 days.</p>
               <input value={cfg.metaToken} onChange={e=>saveCfg("metaToken",e.target.value)} type="password" placeholder="Meta Access Token" style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:12.5,fontFamily:"inherit",marginBottom:8,boxSizing:"border-box",outline:"none"}}/>
-              <input value={cfg.metaAccountId} onChange={e=>saveCfg("metaAccountId",e.target.value)} placeholder="Ad Account ID (numbers only, e.g. 123456789)" style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:12.5,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
+              <input value={cfg.metaAccountId} onChange={e=>saveCfg("metaAccountId",e.target.value)} placeholder="Ad Account ID (numbers only)" style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:12.5,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
             </div>
             <div>
-              <p style={{margin:"0 0 3px",fontSize:12,fontWeight:700,color:C.charcoal,letterSpacing:"0.04em",textTransform:"uppercase"}}>Klaviyo — Email + SMS</p>
-              <p style={{margin:"0 0 8px",fontSize:11.5,color:C.gray400,lineHeight:1.5}}>Klaviyo → Account → API Keys → Create Private API Key (Full Access).</p>
+              <p style={{margin:"0 0 3px",fontSize:11,fontWeight:700,color:C.charcoal,letterSpacing:"0.05em",textTransform:"uppercase"}}>Klaviyo — Email + SMS</p>
+              <p style={{margin:"0 0 8px",fontSize:11.5,color:C.gray400}}>Account → API Keys → Private API Key (Full Access).</p>
               <input value={cfg.klaviyoKey} onChange={e=>saveCfg("klaviyoKey",e.target.value)} type="password" placeholder="Klaviyo Private API Key" style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:12.5,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
             </div>
           </div>
         )}
       </div>
 
-      {/* Meta Ads */}
-      <AnalyticsCard
-        title="Paid Ads" sub="Meta · Facebook + Instagram"
-        icon="◈" loading={loading.meta} error={errors.meta}
-        onRefresh={fetchMeta} connected={metaConnected}
-        metrics={mSum ? [
-          { label:"Spend", value:spend!=null?`$${spend.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`:"-" },
-          { label:"ROAS", value:roas?`${roas}x`:"-", highlight:roas&&parseFloat(roas)>=2 },
-          { label:"Revenue", value:revenue!=null?fmt$(revenue):"-", highlight:revenue&&revenue>0 },
-          { label:"Purchases", value:purchases!=null?Math.round(purchases).toLocaleString():"-" },
-          { label:"Impressions", value:mSum.impressions?parseInt(mSum.impressions).toLocaleString():"-" },
-          { label:"Clicks", value:mSum.clicks?parseInt(mSum.clicks).toLocaleString():"-" },
-          { label:"CTR", value:mSum.ctr?`${parseFloat(mSum.ctr).toFixed(2)}%`:"-" },
-          { label:"Reach", value:mSum.reach?parseInt(mSum.reach).toLocaleString():"-" },
-        ] : null}
-        campaigns={metaData?.campaigns?.map(c=>({
-          name: c.campaign_name,
-          spend: c.spend?`$${parseFloat(c.spend).toFixed(0)}`:null,
-          ctr: c.ctr?`${parseFloat(c.ctr).toFixed(2)}% CTR`:null,
-        }))||null}
-        campaignCols={[{key:"spend",accent:false},{key:"ctr",accent:false}]}
-      />
+      {/* ── Meta Ads ── */}
+      <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.gray200}`,padding:"16px 18px",marginBottom:16}}>
+        <SectionHeader title="Paid Ads" sub="Meta · Facebook + Instagram" connected={metaConnected} loading={loading.meta} onRefresh={fetchMeta}/>
+        {errors.meta&&<p style={{margin:"0 0 10px",fontSize:12,color:"#C0392B",fontWeight:600}}>{errors.meta}</p>}
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          <KpiCard label="Spend"       value={spend!=null?`$${spend.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0})}`:null} scheme="spend"    loading={loading.meta&&!mSum}/>
+          <KpiCard label="ROAS"        value={roas?`${roas}x`:null}                          scheme="roas"     loading={loading.meta&&!mSum}/>
+          <KpiCard label="Purchases"   value={purchases!=null?Math.round(purchases).toLocaleString():null} scheme="purchase" loading={loading.meta&&!mSum}/>
+          <KpiCard label="CTR"         value={mSum?.ctr?`${parseFloat(mSum.ctr).toFixed(2)}%`:null} scheme="ctr"  loading={loading.meta&&!mSum}/>
+          <KpiCard label="Impressions" value={mSum?.impressions?parseInt(mSum.impressions).toLocaleString():null} scheme="impr" loading={loading.meta&&!mSum}/>
+          <KpiCard label="Reach"       value={mSum?.reach?parseInt(mSum.reach).toLocaleString():null} scheme="reach" loading={loading.meta&&!mSum}/>
+        </div>
+        {!metaConnected&&<p style={{margin:"12px 0 0",fontSize:12,color:C.gray400,textAlign:"center"}}>Enter Meta credentials in Platform Connections above</p>}
+        {metaConnected&&!mSum&&!loading.meta&&<p style={{margin:"12px 0 0",fontSize:12,color:C.gray400,textAlign:"center"}}>Click Refresh to load data</p>}
+        <CampaignTable columns={metaCols} rows={metaRows}/>
+      </div>
 
-      {/* Email */}
-      <AnalyticsCard
-        title="Email" sub="Klaviyo"
-        icon="✦" loading={loading.email} error={errors.email}
-        onRefresh={()=>fetchKlaviyo("email")} connected={klConnected}
-        metrics={emailData ? (emailData.report ? [
-          { label:"Recipients", value:klSum(emailData,"recipients")!=null?Math.round(klSum(emailData,"recipients")).toLocaleString():"-" },
-          { label:"Avg Open Rate", value:klAvg(emailData,"open_rate")!=null?fmtPct(klAvg(emailData,"open_rate")):"-", highlight:klAvg(emailData,"open_rate")>0.25 },
-          { label:"Avg Click Rate", value:klAvg(emailData,"click_rate")!=null?fmtPct(klAvg(emailData,"click_rate")):"-", highlight:klAvg(emailData,"click_rate")>0.03 },
-          { label:"Delivered", value:klSum(emailData,"delivered")!=null?Math.round(klSum(emailData,"delivered")).toLocaleString():"-" },
-          { label:"Campaigns", value:emailData.report?.attributes?.results?.length?.toString()||"-" },
-        ] : [
-          { label:"Campaigns", value:emailData.campaigns?.length?.toString()||"-" },
-        ]) : null}
-        campaigns={emailData?.report ? klCampaigns(emailData,[
-          {key:"open_rate",stat:"open_rate",fmt:fmtPct,accent:false},
-        ]) : emailData?.campaigns?.slice(0,5).map(c=>({
-          name: c.attributes?.name,
-          sent: c.attributes?.send_time ? new Date(c.attributes.send_time).toLocaleDateString() : (c.attributes?.status||"—"),
-        }))||null}
-        campaignCols={emailData?.report ? [{key:"open_rate",accent:false}] : [{key:"sent",accent:false}]}
-      />
+      {/* ── Email ── */}
+      <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.gray200}`,padding:"16px 18px",marginBottom:16}}>
+        <SectionHeader title="Email" sub="Klaviyo" connected={klConnected} loading={loading.email} onRefresh={()=>fetchKlaviyo("email")}/>
+        {errors.email&&<p style={{margin:"0 0 10px",fontSize:12,color:"#C0392B",fontWeight:600}}>{errors.email}</p>}
+        {emailData?.report&&(
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:4}}>
+            <KpiCard label="Recipients"   value={klSum(emailData,"recipients")!=null?Math.round(klSum(emailData,"recipients")).toLocaleString():null} scheme="email"   loading={false}/>
+            <KpiCard label="Avg Open Rate" value={klAvg(emailData,"open_rate")!=null?fmtPct(klAvg(emailData,"open_rate")):null} scheme="email"  loading={false}/>
+            <KpiCard label="Avg Click Rate" value={klAvg(emailData,"click_rate")!=null?fmtPct(klAvg(emailData,"click_rate")):null} scheme="click" loading={false}/>
+            <KpiCard label="Campaigns"    value={emailData.report?.attributes?.results?.length?.toString()||null} scheme="impr" loading={false}/>
+          </div>
+        )}
+        {!klConnected&&<p style={{fontSize:12,color:C.gray400,textAlign:"center",margin:"8px 0 0"}}>Enter Klaviyo key in Platform Connections above</p>}
+        {klConnected&&!emailData&&!loading.email&&<p style={{fontSize:12,color:C.gray400,textAlign:"center",margin:"8px 0 0"}}>Click Refresh to load data</p>}
+        <CampaignTable columns={emailCols} rows={emailRows}/>
+      </div>
 
-      {/* SMS */}
-      <AnalyticsCard
-        title="SMS" sub="Klaviyo"
-        icon="◉" loading={loading.sms} error={errors.sms}
-        onRefresh={()=>fetchKlaviyo("sms")} connected={klConnected}
-        metrics={smsData ? [
-          { label:"Campaigns", value:smsData.campaigns?.length?.toString()||"-" },
-        ] : null}
-        campaigns={smsData?.campaigns?.slice(0,5).map(c=>({
-          name: c.attributes?.name,
-          sent: c.attributes?.send_time ? new Date(c.attributes.send_time).toLocaleDateString() : (c.attributes?.status||"—"),
-        }))||null}
-        campaignCols={[{key:"sent",accent:false}]}
-      />
+      {/* ── SMS ── */}
+      <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.gray200}`,padding:"16px 18px",marginBottom:16}}>
+        <SectionHeader title="SMS" sub="Klaviyo" connected={klConnected} loading={loading.sms} onRefresh={()=>fetchKlaviyo("sms")}/>
+        {errors.sms&&<p style={{margin:"0 0 10px",fontSize:12,color:"#C0392B",fontWeight:600}}>{errors.sms}</p>}
+        {smsData&&<p style={{margin:"0 0 10px",fontSize:12,color:C.gray600}}>{smsData.campaigns?.length||0} campaigns in period</p>}
+        {!klConnected&&<p style={{fontSize:12,color:C.gray400,textAlign:"center"}}>Enter Klaviyo key in Platform Connections above</p>}
+        {klConnected&&!smsData&&!loading.sms&&<p style={{fontSize:12,color:C.gray400,textAlign:"center"}}>Click Refresh to load data</p>}
+        <CampaignTable columns={smsCols} rows={smsRows}/>
+      </div>
 
       {/* AI Insights */}
       {hasData&&(
