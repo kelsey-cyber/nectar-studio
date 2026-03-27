@@ -51,19 +51,30 @@ async function klaviyoHandler({ apiKey, channel = "email", timeframe = "last_30_
     return res.status(200).json({ report: null, campaigns: campaignsData.data || [] });
   }
 
-  // Email: also fetch metrics to get conversion_metric_id
-  const metricsRes = await fetch(
-    `https://a.klaviyo.com/api/metrics/`,
-    { headers }
-  );
-  const metricsData = await metricsRes.json();
-  const conversionMetric = metricsData.data?.find(m =>
-    m.attributes?.name === "Placed Order" || m.attributes?.name === "Ordered Product" || m.attributes?.name === "Active on Site"
+  // Email: fetch all metrics pages to find conversion metric
+  let allMetrics = [];
+  let nextMetricsUrl = `https://a.klaviyo.com/api/metrics/`;
+  while (nextMetricsUrl) {
+    const r = await fetch(nextMetricsUrl, { headers });
+    const d = await r.json();
+    if (!r.ok) break;
+    allMetrics = allMetrics.concat(d.data || []);
+    nextMetricsUrl = d.links?.next || null;
+  }
+
+  // Match any order-related metric name
+  const ORDER_NAMES = ["placed order", "ordered product", "purchase", "order placed", "checkout completed", "order completed"];
+  const conversionMetric = allMetrics.find(m =>
+    ORDER_NAMES.some(n => m.attributes?.name?.toLowerCase().includes(n))
   );
 
   if (!conversionMetric) {
-    // No conversion metric found — return campaigns only
-    return res.status(200).json({ report: null, campaigns: campaignsData.data || [] });
+    // Return campaigns list + metric names for debugging
+    return res.status(200).json({
+      report: null,
+      campaigns: campaignsData.data || [],
+      availableMetrics: allMetrics.map(m => m.attributes?.name).filter(Boolean),
+    });
   }
 
   const reportBody = {
@@ -73,8 +84,8 @@ async function klaviyoHandler({ apiKey, channel = "email", timeframe = "last_30_
         timeframe: { key: timeframe },
         conversion_metric_id: conversionMetric.id,
         filter: `equals(send_channel,'email')`,
-        statistics: ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients"],
-        sort: "-opens",
+        statistics: ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients", "revenue"],
+        sort: "-revenue",
       }
     }
   };
@@ -85,12 +96,16 @@ async function klaviyoHandler({ apiKey, channel = "email", timeframe = "last_30_
   const report = await reportRes.json();
 
   if (!reportRes.ok) {
-    // Fall back to campaigns list only
-    return res.status(200).json({ report: null, campaigns: campaignsData.data || [] });
+    return res.status(200).json({
+      report: null,
+      campaigns: campaignsData.data || [],
+      reportError: report?.errors?.[0]?.detail,
+    });
   }
 
   return res.status(200).json({
     report: report.data || null,
-    campaigns: campaignsData.data || []
+    campaigns: campaignsData.data || [],
+    conversionMetricName: conversionMetric.attributes?.name,
   });
 }

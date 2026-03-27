@@ -977,6 +977,7 @@ function Analytics() {
     ? klCampaigns(emailData,[
         {key:"open_rate",stat:"open_rate",fmt:fmtPct},
         {key:"click_rate",stat:"click_rate",fmt:fmtPct},
+        {key:"revenue",stat:"revenue",fmt:fmt$},
         {key:"delivered",stat:"delivered",fmt:v=>Math.round(v).toLocaleString()},
       ])
     : emailData?.campaigns?.slice(0,8).map(c=>({
@@ -986,9 +987,10 @@ function Analytics() {
 
   const emailCols = emailData?.report
     ? [
-        {key:"open_rate",  label:"Open Rate",  scheme:"email",  highlight:r=>r.open_rateRaw&&parseFloat(r.open_rateRaw)>0.25},
-        {key:"click_rate", label:"Click Rate", scheme:"click",  highlight:r=>r.click_rateRaw&&parseFloat(r.click_rateRaw)>0.03},
-        {key:"delivered",  label:"Delivered",  scheme:"impr",   highlight:null},
+        {key:"open_rate",  label:"Open Rate",  scheme:"email",    highlight:r=>r.open_rateRaw&&parseFloat(r.open_rateRaw)>0.25},
+        {key:"click_rate", label:"Click Rate", scheme:"click",    highlight:r=>r.click_rateRaw&&parseFloat(r.click_rateRaw)>0.03},
+        {key:"revenue",    label:"Revenue",    scheme:"roas",     highlight:r=>r.revenue},
+        {key:"delivered",  label:"Delivered",  scheme:"impr",     highlight:null},
       ]
     : [{key:"sent", label:"Sent", scheme:"email", highlight:null}];
 
@@ -1064,6 +1066,7 @@ function Analytics() {
             <KpiCard label="Recipients"    value={klSum(emailData,"recipients")!=null?Math.round(klSum(emailData,"recipients")).toLocaleString():null} scheme="email" loading={false}/>
             <KpiCard label="Avg Open Rate" value={klAvg(emailData,"open_rate")!=null?fmtPct(klAvg(emailData,"open_rate")):null}   scheme="email" loading={false} benchKey="open_rate"  rawValue={klAvg(emailData,"open_rate")}/>
             <KpiCard label="Avg Click Rate" value={klAvg(emailData,"click_rate")!=null?fmtPct(klAvg(emailData,"click_rate")):null} scheme="click" loading={false} benchKey="click_rate" rawValue={klAvg(emailData,"click_rate")}/>
+            {klSum(emailData,"revenue")!=null&&<KpiCard label="Revenue" value={fmt$(klSum(emailData,"revenue"))} scheme="roas" loading={false}/>}
             <KpiCard label="Campaigns"     value={emailData.report?.attributes?.results?.length?.toString()||null} scheme="impr" loading={false}/>
           </div>
         )}
