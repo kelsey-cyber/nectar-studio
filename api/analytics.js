@@ -85,7 +85,6 @@ async function klaviyoHandler({ apiKey, channel = "email", timeframe = "last_30_
         conversion_metric_id: conversionMetric.id,
         filter: `equals(send_channel,'email')`,
         statistics: ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients"],
-        sort: "-clicks",
       }
     }
   };
