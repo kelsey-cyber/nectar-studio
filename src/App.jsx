@@ -1090,6 +1090,8 @@ function Analytics() {
       <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.gray200}`,padding:"16px 18px",marginBottom:16}}>
         <SectionHeader title="Email" sub="Klaviyo" connected={klConnected} loading={loading.email} onRefresh={()=>fetchKlaviyo("email")}/>
         {errors.email&&<p style={{margin:"0 0 10px",fontSize:12,color:"#C0392B",fontWeight:600}}>{errors.email}</p>}
+        {emailData?.reportError&&<p style={{margin:"0 0 10px",fontSize:12,color:"#C0392B",fontWeight:600}}>Report error: {emailData.reportError}</p>}
+        {emailData?.availableMetrics&&<p style={{margin:"0 0 10px",fontSize:12,color:"#D97706",fontWeight:600}}>No order metric found. Available: {emailData.availableMetrics.join(", ")}</p>}
         {emailData?.report&&(
           <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:4}}>
             <KpiCard label="Recipients"    value={klSum(emailData,"recipients")!=null?Math.round(klSum(emailData,"recipients")).toLocaleString():null} scheme="email" loading={false}/>
