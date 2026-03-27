@@ -39,50 +39,58 @@ async function klaviyoHandler({ apiKey, channel = "email", timeframe = "last_30_
     "Content-Type": "application/json",
   };
 
-  // SMS uses campaigns list only (values report requires conversion_metric_id)
+  // Fetch campaigns list (works for both email and SMS)
+  const campaignsRes = await fetch(
+    `https://a.klaviyo.com/api/campaigns/?filter=equals(messages.channel,'${channel}')&sort=-created_at`,
+    { headers }
+  );
+  const campaignsData = await campaignsRes.json();
+  if (!campaignsRes.ok) return res.status(campaignsRes.status).json({ error: campaignsData?.errors?.[0]?.detail || `Klaviyo error ${campaignsRes.status}` });
+
   if (channel === "sms") {
-    const r = await fetch(
-      `https://a.klaviyo.com/api/campaigns/?filter=equals(messages.channel,'sms')&sort=-created_at&page%5Bsize%5D=10`,
-      { headers }
-    );
-    const d = await r.json();
-    if (!r.ok) return res.status(r.status).json({ error: d?.errors?.[0]?.detail || `Klaviyo error ${r.status}` });
-    return res.status(200).json({ report: null, campaigns: d.data || [] });
+    return res.status(200).json({ report: null, campaigns: campaignsData.data || [] });
   }
 
-  // Email: campaign values report
+  // Email: also fetch metrics to get conversion_metric_id
+  const metricsRes = await fetch(
+    `https://a.klaviyo.com/api/metrics/`,
+    { headers }
+  );
+  const metricsData = await metricsRes.json();
+  const conversionMetric = metricsData.data?.find(m =>
+    m.attributes?.name === "Placed Order" || m.attributes?.name === "Ordered Product" || m.attributes?.name === "Active on Site"
+  );
+
+  if (!conversionMetric) {
+    // No conversion metric found — return campaigns only
+    return res.status(200).json({ report: null, campaigns: campaignsData.data || [] });
+  }
+
   const reportBody = {
     data: {
       type: "campaign-values-report",
       attributes: {
         timeframe: { key: timeframe },
+        conversion_metric_id: conversionMetric.id,
         filter: `equals(send_channel,'email')`,
         statistics: ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients"],
         sort: "-opens",
-        page_size: 20,
       }
     }
   };
 
-  const [reportRes, campaignsRes] = await Promise.all([
-    fetch("https://a.klaviyo.com/api/campaign-values-reports/", {
-      method: "POST", headers, body: JSON.stringify(reportBody)
-    }),
-    fetch(`https://a.klaviyo.com/api/campaigns/?filter=equals(messages.channel,'email')&sort=-created_at&page%5Bsize%5D=6`, {
-      headers
-    })
-  ]);
-
-  const [report, campaigns] = await Promise.all([reportRes.json(), campaignsRes.json()]);
+  const reportRes = await fetch("https://a.klaviyo.com/api/campaign-values-reports/", {
+    method: "POST", headers, body: JSON.stringify(reportBody)
+  });
+  const report = await reportRes.json();
 
   if (!reportRes.ok) {
-    return res.status(reportRes.status).json({
-      error: report?.errors?.[0]?.detail || `Klaviyo error ${reportRes.status}`
-    });
+    // Fall back to campaigns list only
+    return res.status(200).json({ report: null, campaigns: campaignsData.data || [] });
   }
 
   return res.status(200).json({
     report: report.data || null,
-    campaigns: campaigns.data || []
+    campaigns: campaignsData.data || []
   });
 }
