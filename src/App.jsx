@@ -939,10 +939,16 @@ function Analytics() {
   function klCampaigns(data,cols) {
     const rs = data?.report?.attributes?.results;
     if (!rs) return null;
-    return rs.slice(0,5).map(r=>({
-      name: r.groupings?.campaign_name,
-      ...cols.reduce((o,c)=>({...o,[c.key]:r.statistics?.[c.stat]!=null?c.fmt(r.statistics[c.stat]):null}),{})
-    }));
+    return rs.slice(0,8).map(r=>{
+      const campId = r.groupings?.campaign_id;
+      const name = r.groupings?.campaign_name
+        || data.campaigns?.find(c=>c.id===campId)?.attributes?.name
+        || campId || "—";
+      return {
+        name,
+        ...cols.reduce((o,c)=>({...o,[c.key]:r.statistics?.[c.stat]!=null?c.fmt(r.statistics[c.stat]):null}),{})
+      };
+    });
   }
   const fmt$ = v=>`$${parseFloat(v).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0})}`;
   const fmtPct = v=>`${(parseFloat(v)*100).toFixed(1)}%`;
