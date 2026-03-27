@@ -40,8 +40,8 @@ async function klaviyoHandler({ apiKey, channel = "email", timeframe = "last_30_
   };
 
   const stats = channel === "email"
-    ? ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients", "revenue", "click_to_open_rate"]
-    : ["clicks", "click_rate", "delivered", "recipients", "revenue"];
+    ? ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients", "bounced", "unsubscribed"]
+    : ["clicks", "click_rate", "delivered", "recipients"];
 
   const reportBody = {
     data: {

@@ -822,7 +822,11 @@ function Analytics() {
     setLoading(p=>({...p,[key]:false}));
   }
 
-  function fetchAll() { fetchMeta(); fetchKlaviyo("email"); fetchKlaviyo("sms"); }
+  async function fetchAll() {
+    fetchMeta();
+    await fetchKlaviyo("email");
+    await fetchKlaviyo("sms");
+  }
 
   // ── Meta helpers ──
   const mSum = metaData?.summary;
@@ -866,13 +870,11 @@ function Analytics() {
         campaigns: emailData.report.attributes.results.length,
         avgOpenRate: klAvg(emailData,"open_rate")!=null?fmtPct(klAvg(emailData,"open_rate")):null,
         avgClickRate: klAvg(emailData,"click_rate")!=null?fmtPct(klAvg(emailData,"click_rate")):null,
-        totalRevenue: klSum(emailData,"revenue")!=null?fmt$(klSum(emailData,"revenue")):null,
         totalRecipients: klSum(emailData,"recipients"),
       } : null,
       sms: smsData?.report?.attributes?.results?.length ? {
         campaigns: smsData.report.attributes.results.length,
         avgClickRate: klAvg(smsData,"click_rate")!=null?fmtPct(klAvg(smsData,"click_rate")):null,
-        totalRevenue: klSum(smsData,"revenue")!=null?fmt$(klSum(smsData,"revenue")):null,
         totalRecipients: klSum(smsData,"recipients"),
       } : null,
     };
@@ -956,7 +958,7 @@ function Analytics() {
           { label:"Recipients", value:klSum(emailData,"recipients")!=null?Math.round(klSum(emailData,"recipients")).toLocaleString():"-" },
           { label:"Avg Open Rate", value:klAvg(emailData,"open_rate")!=null?fmtPct(klAvg(emailData,"open_rate")):"-", highlight:klAvg(emailData,"open_rate")>0.25 },
           { label:"Avg Click Rate", value:klAvg(emailData,"click_rate")!=null?fmtPct(klAvg(emailData,"click_rate")):"-", highlight:klAvg(emailData,"click_rate")>0.03 },
-          { label:"Revenue", value:klSum(emailData,"revenue")!=null?fmt$(klSum(emailData,"revenue")):"-", highlight:klSum(emailData,"revenue")>0 },
+          { label:"Bounced", value:klSum(emailData,"bounced")!=null?Math.round(klSum(emailData,"bounced")).toLocaleString():"-" },
           { label:"Campaigns", value:emailData?.report?.attributes?.results?.length?.toString()||"-" },
         ] : null}
         campaigns={klCampaigns(emailData,[
@@ -974,7 +976,6 @@ function Analytics() {
         metrics={smsData?.report ? [
           { label:"Recipients", value:klSum(smsData,"recipients")!=null?Math.round(klSum(smsData,"recipients")).toLocaleString():"-" },
           { label:"Avg Click Rate", value:klAvg(smsData,"click_rate")!=null?fmtPct(klAvg(smsData,"click_rate")):"-", highlight:klAvg(smsData,"click_rate")>0.03 },
-          { label:"Revenue", value:klSum(smsData,"revenue")!=null?fmt$(klSum(smsData,"revenue")):"-", highlight:klSum(smsData,"revenue")>0 },
           { label:"Campaigns", value:smsData?.report?.attributes?.results?.length?.toString()||"-" },
         ] : null}
         campaigns={klCampaigns(smsData,[
