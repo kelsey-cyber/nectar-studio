@@ -1013,11 +1013,22 @@ function Analytics() {
       ]
     : [{key:"sent", label:"Sent", scheme:"email", highlight:null}];
 
-  const smsCols = [{key:"sent",label:"Date",scheme:"sms",highlight:null}];
-  const smsRows = smsData?.campaigns?.slice(0,8).map(c=>({
-    name: c.attributes?.name,
-    sent: c.attributes?.send_time?new Date(c.attributes.send_time).toLocaleDateString():(c.attributes?.status||"—"),
-  }))||null;
+  const smsCols = smsData?.report
+    ? [
+        {key:"click_rate", label:"Click Rate", scheme:"click", highlight:r=>r.click_rateRaw&&parseFloat(r.click_rateRaw)>0.02},
+        {key:"delivered",  label:"Delivered",  scheme:"impr",  highlight:null},
+      ]
+    : [{key:"sent",label:"Date",scheme:"sms",highlight:null}];
+
+  const smsRows = smsData?.report
+    ? klCampaigns(smsData,[
+        {key:"click_rate",stat:"click_rate",fmt:fmtPct},
+        {key:"delivered",stat:"delivered",fmt:v=>Math.round(v).toLocaleString()},
+      ])
+    : smsData?.campaigns?.slice(0,8).map(c=>({
+        name: c.attributes?.name,
+        sent: c.attributes?.send_time?new Date(c.attributes.send_time).toLocaleDateString():(c.attributes?.status||"—"),
+      }))||null;
 
   return (
     <div>
@@ -1109,7 +1120,15 @@ function Analytics() {
       <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.gray200}`,padding:"16px 18px",marginBottom:16}}>
         <SectionHeader title="SMS" sub="Klaviyo" connected={klConnected} loading={loading.sms} onRefresh={()=>fetchKlaviyo("sms")}/>
         {errors.sms&&<p style={{margin:"0 0 10px",fontSize:12,color:"#C0392B",fontWeight:600}}>{errors.sms}</p>}
-        {smsData&&<p style={{margin:"0 0 10px",fontSize:12,color:C.gray600}}>{smsData.campaigns?.length||0} campaigns in period</p>}
+        {smsData?.reportError&&<p style={{margin:"0 0 10px",fontSize:12,color:"#C0392B",fontWeight:600}}>Report error: {smsData.reportError}</p>}
+        {smsData?.availableMetrics&&<p style={{margin:"0 0 10px",fontSize:12,color:"#D97706",fontWeight:600}}>No order metric found. Available: {smsData.availableMetrics.join(", ")}</p>}
+        {smsData?.report&&(
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:4}}>
+            <KpiCard label="Recipients"    value={klSum(smsData,"recipients")!=null?Math.round(klSum(smsData,"recipients")).toLocaleString():null} scheme="sms" loading={false}/>
+            <KpiCard label="Avg Click Rate" value={klAvg(smsData,"click_rate")!=null?fmtPct(klAvg(smsData,"click_rate")):null} scheme="click" loading={false} benchKey="sms_click_rate" rawValue={klAvg(smsData,"click_rate")}/>
+            <KpiCard label="Campaigns"     value={smsData.report?.attributes?.results?.length?.toString()||null} scheme="impr" loading={false}/>
+          </div>
+        )}
         {!klConnected&&<p style={{fontSize:12,color:C.gray400,textAlign:"center"}}>Enter Klaviyo key in Platform Connections above</p>}
         {klConnected&&!smsData&&!loading.sms&&<p style={{fontSize:12,color:C.gray400,textAlign:"center"}}>Click Refresh to load data</p>}
         <CampaignTable columns={smsCols} rows={smsRows}/>

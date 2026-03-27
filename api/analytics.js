@@ -47,11 +47,7 @@ async function klaviyoHandler({ apiKey, channel = "email", timeframe = "last_30_
   const campaignsData = await campaignsRes.json();
   if (!campaignsRes.ok) return res.status(campaignsRes.status).json({ error: campaignsData?.errors?.[0]?.detail || `Klaviyo error ${campaignsRes.status}` });
 
-  if (channel === "sms") {
-    return res.status(200).json({ report: null, campaigns: campaignsData.data || [] });
-  }
-
-  // Email: fetch all metrics pages to find conversion metric
+  // Fetch all metrics pages to find conversion metric (used by both email and SMS)
   let allMetrics = [];
   let nextMetricsUrl = `https://a.klaviyo.com/api/metrics/`;
   while (nextMetricsUrl) {
@@ -62,14 +58,12 @@ async function klaviyoHandler({ apiKey, channel = "email", timeframe = "last_30_
     nextMetricsUrl = d.links?.next || null;
   }
 
-  // Match any order-related metric name
   const ORDER_NAMES = ["placed order", "ordered product", "purchase", "order placed", "checkout completed", "order completed"];
   const conversionMetric = allMetrics.find(m =>
     ORDER_NAMES.some(n => m.attributes?.name?.toLowerCase().includes(n))
   );
 
   if (!conversionMetric) {
-    // Return campaigns list + metric names for debugging
     return res.status(200).json({
       report: null,
       campaigns: campaignsData.data || [],
@@ -77,14 +71,17 @@ async function klaviyoHandler({ apiKey, channel = "email", timeframe = "last_30_
     });
   }
 
+  const isEmail = channel === "email";
   const reportBody = {
     data: {
       type: "campaign-values-report",
       attributes: {
         timeframe: { key: timeframe },
         conversion_metric_id: conversionMetric.id,
-        filter: `equals(send_channel,'email')`,
-        statistics: ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients"],
+        filter: `equals(send_channel,'${channel}')`,
+        statistics: isEmail
+          ? ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients"]
+          : ["clicks", "click_rate", "delivered", "recipients"],
       }
     }
   };
