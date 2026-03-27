@@ -732,18 +732,47 @@ const AN = {
   sms:     { color:"#0891B2", bg:"#ECFEFF" },
 };
 
-function KpiCard({ label, value, scheme, loading }) {
+// Benchmarks: { good, great, label }
+const BENCH = {
+  roas:       { great:3,    good:2,    bad:1,    fmt:v=>parseFloat(v),  hint:"Good ≥ 2x · Great ≥ 3x" },
+  ctr:        { great:2,    good:1,    bad:0.5,  fmt:v=>parseFloat(v),  hint:"Good ≥ 1% · Great ≥ 2%" },
+  open_rate:  { great:0.35, good:0.25, bad:0.15, fmt:v=>parseFloat(v),  hint:"Good ≥ 25% · Great ≥ 35%" },
+  click_rate: { great:0.05, good:0.03, bad:0.01, fmt:v=>parseFloat(v),  hint:"Good ≥ 3% · Great ≥ 5%" },
+};
+
+function getBenchStatus(metricKey, rawValue) {
+  const b = BENCH[metricKey];
+  if (!b || rawValue == null) return null;
+  const v = b.fmt(rawValue);
+  if (v >= b.great) return "great";
+  if (v >= b.good)  return "good";
+  if (v < b.bad)    return "low";
+  return "ok";
+}
+
+const STATUS_STYLE = {
+  great: { bg:"#F0FDF4", color:"#15803D", label:"Great" },
+  good:  { bg:"#F0FDF4", color:"#16A34A", label:"Good"  },
+  ok:    { bg:"#FFFBEB", color:"#B45309", label:"OK"    },
+  low:   { bg:"#FEF2F2", color:"#DC2626", label:"Low"   },
+};
+
+function KpiCard({ label, value, scheme, loading, benchKey, rawValue, hint }) {
   const s = AN[scheme]||{color:C.hotPink,bg:C.blush};
+  const status = benchKey ? getBenchStatus(benchKey, rawValue) : null;
+  const ss = status ? STATUS_STYLE[status] : null;
   return (
     <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.gray200}`,padding:"14px 16px",flex:"1 1 90px",minWidth:0}}>
       <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:6}}>
         <span style={{width:8,height:8,borderRadius:2,background:s.color,display:"inline-block",flexShrink:0}}/>
         <span style={{fontSize:10,color:C.gray600,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</span>
+        {ss&&<span style={{marginLeft:"auto",fontSize:9.5,fontWeight:700,padding:"1px 6px",borderRadius:4,background:ss.bg,color:ss.color,flexShrink:0}}>{ss.label}</span>}
       </div>
       {loading
         ? <div style={{height:24,width:60,background:C.gray200,borderRadius:4,animation:"pulse 1.2s ease-in-out infinite"}}/>
-        : <p style={{margin:0,fontSize:20,fontWeight:700,color:"#111827",fontFamily:"system-ui,-apple-system,sans-serif",lineHeight:1.1}}>{value||"—"}</p>
+        : <p style={{margin:"0 0 4px",fontSize:20,fontWeight:700,color:"#111827",fontFamily:"system-ui,-apple-system,sans-serif",lineHeight:1.1}}>{value||"—"}</p>
       }
+      {hint&&!loading&&<p style={{margin:0,fontSize:9.5,color:C.gray400,lineHeight:1.3}}>{BENCH[benchKey]?.hint||hint}</p>}
     </div>
   );
 }
@@ -1013,10 +1042,10 @@ function Analytics() {
         {errors.meta&&<p style={{margin:"0 0 10px",fontSize:12,color:"#C0392B",fontWeight:600}}>{errors.meta}</p>}
         <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
           <KpiCard label="Spend"       value={spend!=null?`$${spend.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0})}`:null} scheme="spend"    loading={loading.meta&&!mSum}/>
-          <KpiCard label="ROAS"        value={roas?`${roas}x`:null}                          scheme="roas"     loading={loading.meta&&!mSum}/>
+          <KpiCard label="ROAS"        value={roas?`${roas}x`:null}    scheme="roas"     loading={loading.meta&&!mSum} benchKey="roas"  rawValue={roas}/>
           <KpiCard label="Purchases"   value={purchases!=null?Math.round(purchases).toLocaleString():null} scheme="purchase" loading={loading.meta&&!mSum}/>
-          <KpiCard label="CTR"         value={mSum?.ctr?`${parseFloat(mSum.ctr).toFixed(2)}%`:null} scheme="ctr"  loading={loading.meta&&!mSum}/>
-          <KpiCard label="Impressions" value={mSum?.impressions?parseInt(mSum.impressions).toLocaleString():null} scheme="impr" loading={loading.meta&&!mSum}/>
+          <KpiCard label="CTR"         value={mSum?.ctr?`${parseFloat(mSum.ctr).toFixed(2)}%`:null} scheme="ctr" loading={loading.meta&&!mSum} benchKey="ctr" rawValue={mSum?.ctr}/>
+          <KpiCard label="Impressions" value={mSum?.impressions?parseInt(mSum.impressions).toLocaleString():null} scheme="impr"  loading={loading.meta&&!mSum}/>
           <KpiCard label="Reach"       value={mSum?.reach?parseInt(mSum.reach).toLocaleString():null} scheme="reach" loading={loading.meta&&!mSum}/>
         </div>
         {!metaConnected&&<p style={{margin:"12px 0 0",fontSize:12,color:C.gray400,textAlign:"center"}}>Enter Meta credentials in Platform Connections above</p>}
@@ -1030,10 +1059,10 @@ function Analytics() {
         {errors.email&&<p style={{margin:"0 0 10px",fontSize:12,color:"#C0392B",fontWeight:600}}>{errors.email}</p>}
         {emailData?.report&&(
           <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:4}}>
-            <KpiCard label="Recipients"   value={klSum(emailData,"recipients")!=null?Math.round(klSum(emailData,"recipients")).toLocaleString():null} scheme="email"   loading={false}/>
-            <KpiCard label="Avg Open Rate" value={klAvg(emailData,"open_rate")!=null?fmtPct(klAvg(emailData,"open_rate")):null} scheme="email"  loading={false}/>
-            <KpiCard label="Avg Click Rate" value={klAvg(emailData,"click_rate")!=null?fmtPct(klAvg(emailData,"click_rate")):null} scheme="click" loading={false}/>
-            <KpiCard label="Campaigns"    value={emailData.report?.attributes?.results?.length?.toString()||null} scheme="impr" loading={false}/>
+            <KpiCard label="Recipients"    value={klSum(emailData,"recipients")!=null?Math.round(klSum(emailData,"recipients")).toLocaleString():null} scheme="email" loading={false}/>
+            <KpiCard label="Avg Open Rate" value={klAvg(emailData,"open_rate")!=null?fmtPct(klAvg(emailData,"open_rate")):null}   scheme="email" loading={false} benchKey="open_rate"  rawValue={klAvg(emailData,"open_rate")}/>
+            <KpiCard label="Avg Click Rate" value={klAvg(emailData,"click_rate")!=null?fmtPct(klAvg(emailData,"click_rate")):null} scheme="click" loading={false} benchKey="click_rate" rawValue={klAvg(emailData,"click_rate")}/>
+            <KpiCard label="Campaigns"     value={emailData.report?.attributes?.results?.length?.toString()||null} scheme="impr" loading={false}/>
           </div>
         )}
         {!klConnected&&<p style={{fontSize:12,color:C.gray400,textAlign:"center",margin:"8px 0 0"}}>Enter Klaviyo key in Platform Connections above</p>}
