@@ -757,22 +757,24 @@ const STATUS_STYLE = {
   low:   { bg:"#FEF2F2", color:"#DC2626", label:"Low"   },
 };
 
-function KpiCard({ label, value, scheme, loading, benchKey, rawValue, hint }) {
+function KpiCard({ label, value, scheme, loading, benchKey, rawValue }) {
   const s = AN[scheme]||{color:C.hotPink,bg:C.blush};
   const status = benchKey ? getBenchStatus(benchKey, rawValue) : null;
   const ss = status ? STATUS_STYLE[status] : null;
   return (
-    <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.gray200}`,padding:"14px 16px",flex:"1 1 90px",minWidth:0}}>
-      <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:6}}>
+    <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.gray200}`,padding:"14px 16px",flex:"1 1 100px",minWidth:0}}>
+      <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:8}}>
         <span style={{width:8,height:8,borderRadius:2,background:s.color,display:"inline-block",flexShrink:0}}/>
-        <span style={{fontSize:10,color:C.gray600,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</span>
-        {ss&&<span style={{marginLeft:"auto",fontSize:9.5,fontWeight:700,padding:"1px 6px",borderRadius:4,background:ss.bg,color:ss.color,flexShrink:0}}>{ss.label}</span>}
+        <span style={{fontSize:10,color:C.gray600,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",whiteSpace:"nowrap"}}>{label}</span>
       </div>
       {loading
-        ? <div style={{height:24,width:60,background:C.gray200,borderRadius:4,animation:"pulse 1.2s ease-in-out infinite"}}/>
-        : <p style={{margin:"0 0 4px",fontSize:20,fontWeight:700,color:"#111827",fontFamily:"system-ui,-apple-system,sans-serif",lineHeight:1.1}}>{value||"—"}</p>
+        ? <div style={{height:26,width:60,background:C.gray200,borderRadius:4,animation:"pulse 1.2s ease-in-out infinite"}}/>
+        : <p style={{margin:"0 0 6px",fontSize:22,fontWeight:700,color:"#111827",fontFamily:"system-ui,-apple-system,sans-serif",lineHeight:1}}>{value||"—"}</p>
       }
-      {hint&&!loading&&<p style={{margin:0,fontSize:9.5,color:C.gray400,lineHeight:1.3}}>{BENCH[benchKey]?.hint||hint}</p>}
+      {ss
+        ? <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:4,background:ss.bg,color:ss.color}}>{ss.label} · {BENCH[benchKey]?.hint}</span>
+        : <span style={{fontSize:10,color:"transparent"}}>·</span>
+      }
     </div>
   );
 }
