@@ -39,18 +39,26 @@ async function klaviyoHandler({ apiKey, channel = "email", timeframe = "last_30_
     "Content-Type": "application/json",
   };
 
-  const stats = channel === "email"
-    ? ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients", "bounced", "unsubscribed"]
-    : ["clicks", "click_rate", "delivered", "recipients"];
+  // SMS uses campaigns list only (values report requires conversion_metric_id)
+  if (channel === "sms") {
+    const r = await fetch(
+      `https://a.klaviyo.com/api/campaigns/?filter=equals(messages.channel,'sms')&sort=-created_at&page%5Bsize%5D=10`,
+      { headers }
+    );
+    const d = await r.json();
+    if (!r.ok) return res.status(r.status).json({ error: d?.errors?.[0]?.detail || `Klaviyo error ${r.status}` });
+    return res.status(200).json({ report: null, campaigns: d.data || [] });
+  }
 
+  // Email: campaign values report
   const reportBody = {
     data: {
       type: "campaign-values-report",
       attributes: {
         timeframe: { key: timeframe },
-        filter: `equals(send_channel,'${channel}')`,
-        statistics: stats,
-        sort: "-revenue",
+        filter: `equals(send_channel,'email')`,
+        statistics: ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients"],
+        sort: "-opens",
         page_size: 20,
       }
     }
@@ -60,7 +68,7 @@ async function klaviyoHandler({ apiKey, channel = "email", timeframe = "last_30_
     fetch("https://a.klaviyo.com/api/campaign-values-reports/", {
       method: "POST", headers, body: JSON.stringify(reportBody)
     }),
-    fetch(`https://a.klaviyo.com/api/campaigns/?filter=equals(messages.channel,'${channel}')&sort=-created_at&page%5Bsize%5D=6`, {
+    fetch(`https://a.klaviyo.com/api/campaigns/?filter=equals(messages.channel,'email')&sort=-created_at&page%5Bsize%5D=6`, {
       headers
     })
   ]);

@@ -958,7 +958,7 @@ function Analytics() {
           { label:"Recipients", value:klSum(emailData,"recipients")!=null?Math.round(klSum(emailData,"recipients")).toLocaleString():"-" },
           { label:"Avg Open Rate", value:klAvg(emailData,"open_rate")!=null?fmtPct(klAvg(emailData,"open_rate")):"-", highlight:klAvg(emailData,"open_rate")>0.25 },
           { label:"Avg Click Rate", value:klAvg(emailData,"click_rate")!=null?fmtPct(klAvg(emailData,"click_rate")):"-", highlight:klAvg(emailData,"click_rate")>0.03 },
-          { label:"Bounced", value:klSum(emailData,"bounced")!=null?Math.round(klSum(emailData,"bounced")).toLocaleString():"-" },
+          { label:"Delivered", value:klSum(emailData,"delivered")!=null?Math.round(klSum(emailData,"delivered")).toLocaleString():"-" },
           { label:"Campaigns", value:emailData?.report?.attributes?.results?.length?.toString()||"-" },
         ] : null}
         campaigns={klCampaigns(emailData,[
@@ -973,16 +973,14 @@ function Analytics() {
         title="SMS" sub="Klaviyo"
         icon="◉" loading={loading.sms} error={errors.sms}
         onRefresh={()=>fetchKlaviyo("sms")} connected={klConnected}
-        metrics={smsData?.report ? [
-          { label:"Recipients", value:klSum(smsData,"recipients")!=null?Math.round(klSum(smsData,"recipients")).toLocaleString():"-" },
-          { label:"Avg Click Rate", value:klAvg(smsData,"click_rate")!=null?fmtPct(klAvg(smsData,"click_rate")):"-", highlight:klAvg(smsData,"click_rate")>0.03 },
-          { label:"Campaigns", value:smsData?.report?.attributes?.results?.length?.toString()||"-" },
+        metrics={smsData ? [
+          { label:"Campaigns", value:smsData.campaigns?.length?.toString()||"-" },
         ] : null}
-        campaigns={klCampaigns(smsData,[
-          {key:"click_rate",stat:"click_rate",fmt:fmtPct,accent:false},
-          {key:"revenue",stat:"revenue",fmt:fmt$,accent:true},
-        ])}
-        campaignCols={[{key:"click_rate",accent:false},{key:"revenue",accent:true}]}
+        campaigns={smsData?.campaigns?.slice(0,5).map(c=>({
+          name: c.attributes?.name,
+          sent: c.attributes?.send_time ? new Date(c.attributes.send_time).toLocaleDateString() : (c.attributes?.status||"—"),
+        }))||null}
+        campaignCols={[{key:"sent",accent:false}]}
       />
 
       {/* AI Insights */}
