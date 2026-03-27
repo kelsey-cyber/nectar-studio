@@ -340,7 +340,7 @@ function CtxBanner({ ctx, onFill }) {
 }
 
 // ── SOCIAL ────────────────────────────────────────────────────────────────────
-function Social({ ctx }) {
+function Social({ ctx, playbook }) {
   const [pillar,setPillar]=useState("ritual");
   const [platform,setPlatform]=useState("instagram");
   const [product,setProduct]=useState("");
@@ -360,7 +360,8 @@ function Social({ ctx }) {
 
   async function go() {
     setLoading(true); setOut(null); setPreview(false);
-    const sys=`${BRAND_DNA.identity}\n\nGenerate social media content for Nectar Life. Elevated and intentional, not promotional. Benchmarks: Gisou and Chanel. No em-dashes.`;
+    const playbookHint = playbook ? `\n\nTop converting products to feature when relevant: Whipped Soaps (16% CVR), Jumbo Body Butter (13%), Essential Oil Bath Bombs (12%), Customizable Body Butter Mix & Match (8%). Lead with ritual stories, not discounts.` : "";
+    const sys=`${BRAND_DNA.identity}\n\nGenerate social media content for Nectar Life. Elevated and intentional, not promotional. Benchmarks: Gisou and Chanel. No em-dashes.${playbookHint}`;
     const usr=`Generate social content.\nPILLAR: ${sp.label} — ${sp.desc}\nPLATFORM: ${platform}\nPRODUCT: ${product||"General brand moment"}\nANGLE: ${angle||"Seasonal, elevated, ritual-forward"}\nTONE: ${tone}\n\nReturn EXACTLY:\nCAPTION OPTION 1:\n[3-5 sentences, soft CTA at end]\n\nCAPTION OPTION 2:\n[shorter, punchier]\n\nHASHTAGS:\n[8-12 hashtags, always include #nectarlifeusa]\n\nVISUAL DIRECTION:\n[One sentence for ideal image/video]`;
     const res=await callClaude(sys,usr);
     setLoading(false);
@@ -416,7 +417,7 @@ function Social({ ctx }) {
 }
 
 // ── CAMPAIGN ──────────────────────────────────────────────────────────────────
-function Campaign({ setCtx }) {
+function Campaign({ setCtx, playbook }) {
   const [name,setName]=useState("");
   const [mech,setMech]=useState("");
   const [prods,setProds]=useState("");
@@ -444,7 +445,8 @@ function Campaign({ setCtx }) {
     if(!passed) return;
     setLoading(true); setOut(null); setCtxSet(false);
     const chl=Object.entries(ch).filter(([,v])=>v).map(([k])=>k).join(", ");
-    const sys=`${BRAND_DNA.identity}\n\nGenerate campaign copy. Always lead with ritual/ingredient stories, never the discount. Warmth over urgency. No em-dashes.`;
+    const playbookContext = playbook ? `\n\nPERFORMANCE PLAYBOOK (use this to inform copy decisions):\n- B2G1 mechanic outperforms % off on Meta (2x vs lower ROAS)\n- Super Engaged email segments (2k recipients) convert at 0.44% vs 0.06% on full list blasts — recommend segmented sends\n- Last Chance / urgency framing works on engaged segments, not cold lists\n- Top converting products: Whipped Soaps (16%), Jumbo Body Butter (13%), Essential Oil Bath Bombs (12%), Mix & Match Body Butter (8%)\n- Feature specific product names in subject lines — outperforms generic subject lines\n- Abandoned cart emails convert at 1.8–2.1% — always include a cart recovery CTA in campaign copy` : "";
+    const sys=`${BRAND_DNA.identity}\n\nGenerate campaign copy. Always lead with ritual/ingredient stories, never the discount. Warmth over urgency. No em-dashes.${playbookContext}`;
     const usr=`Generate all campaign outputs.\nCAMPAIGN: ${name}\nMECHANIC: ${mech}\nPRODUCTS: ${prods}\nGOAL: ${goal}\nANGLE: ${angle||"Permission-to-indulge, warm, ritual-forward"}\nCHANNELS: ${chl}\n\nReturn EXACTLY:\nEMAIL SUBJECT LINE OPTIONS:\n1. [option]\n2. [option]\n3. [option]\n\nEMAIL PREVIEW TEXT:\n[under 90 chars]\n\nEMAIL BODY COPY (Send 1):\n[150-200 words, ritual story first, offer second, clear CTA]\n\nEMAIL BODY COPY (Non-Opener Resend):\n[80-100 words, different angle]\n\nRESEND SUBJECT LINE OPTIONS:\n1. [option]\n2. [option]\n3. [option]\n\nSMS OPTION 1 (under 160 chars):\n[sms]\n\nSMS OPTION 2 (under 160 chars):\n[sms]\n\nMETA AD HEADLINES (3):\n1. [headline]\n2. [headline]\n3. [headline]\n\nAD BODY COPY:\n[2-3 sentences, mobile-first]\n\nCTA BUTTON TEXT:\n[ALL CAPS, 2-4 words]`;
     const res=await callClaude(sys,usr);
     setLoading(false);
@@ -558,7 +560,7 @@ function Campaign({ setCtx }) {
 }
 
 // ── PHOTO BRIEF ───────────────────────────────────────────────────────────────
-function PhotoBrief({ ctx }) {
+function PhotoBrief({ ctx, playbook }) {
   const [cname,setCname]=useState("");
   const [prods,setProds]=useState("");
   const [shot,setShot]=useState("lifestyle");
@@ -578,7 +580,8 @@ function PhotoBrief({ ctx }) {
   async function go(){
     setLoading(true); setOut(null);
     const al=Object.entries(assets).filter(([,v])=>v).map(([k])=>assetMap[k]).join(" · ");
-    const sys=`${BRAND_DNA.identity}\n\n${BRAND_DNA.photoDirection}\n\nGenerate a creative asset brief. Be specific, visual, actionable. No em-dashes.`;
+    const playbookHint = playbook ? `\n\nHero products by conversion rate (prioritize these in shot direction): Whipped Soaps (16%), Jumbo Body Butter (13%), Essential Oil Bath Bombs (12%), Customizable Mix & Match Body Butter (8%), Sweet Indulgence Gift Set (7%), Face Cream (6.5%). Avoid featuring collection pages — send traffic to individual PDPs.` : "";
+    const sys=`${BRAND_DNA.identity}\n\n${BRAND_DNA.photoDirection}\n\nGenerate a creative asset brief. Be specific, visual, actionable. No em-dashes.${playbookHint}`;
     const usr=`Generate a complete creative asset brief.\nCAMPAIGN: ${cname}\nPRODUCTS: ${prods}\nSHOT TYPE: ${shot}\nKEY MESSAGE: ${hook||"Ritual-forward, seasonal, self-care moment"}\nASSETS: ${al||"Email header, Meta square and story"}\n\nReturn EXACTLY:\nCAMPAIGN ASSET BRIEF\nCampaign: ${cname}\nDue Date: [fill in]\n\nKEY MESSAGE:\n[Single most important feeling. One sentence.]\n\nHERO PRODUCTS:\n[List with visual priority notes]\n\nSHOT DIRECTION:\n[3-4 specific, visual, actionable shot descriptions]\n\nCOLOR AND MOOD:\n[Brand colors + mood description]\n\nASSETS NEEDED:\n${al}\n\nCOPY OVERLAYS:\n[Headline, offer, CTA. Gelica for headlines, Museo Sans 700 ALL CAPS for callouts.]\n\nSALE PAGE ORDER (if applicable):\nHSL, Dry Body Oil, Round Bath Bomb at top\n\nREFERENCE AESTHETIC:\n[One benchmark brand matching the mood]\n\nNOTES:\n[Any flags or constraints]`;
     const res=await callClaude(sys,usr);
     setLoading(false); setOut(res);
@@ -909,7 +912,7 @@ function CampaignTable({ columns, rows }) {
   );
 }
 
-function Analytics() {
+function Analytics({ playbook, savePlaybook }) {
   const RANGES = { "7d":{ meta:"last_7d", kl:"last_7_days" }, "30d":{ meta:"last_30d", kl:"last_30_days" }, "90d":{ meta:"last_90d", kl:"last_90_days" } };
   const [range,setRange] = useState("30d");
   const [showSetup,setShowSetup] = useState(false);
@@ -928,7 +931,6 @@ function Analytics() {
 
   const [extending,setExtending] = useState(false);
   const [extendMsg,setExtendMsg] = useState("");
-  const [playbook,setPlaybook] = useState(()=>localStorage.getItem("anaPlaybook")||NECTAR_PLAYBOOK);
   const [updatingPlaybook,setUpdatingPlaybook] = useState(false);
 
   const metaConnected = !!(cfg.metaToken && cfg.metaAccountId);
@@ -1055,8 +1057,7 @@ function Analytics() {
     const sys = `You are a performance marketing analyst for Nectar Life (nectarusa.com) — a handcrafted, plant-based bath and body brand. Your job is to extract a reusable playbook of what actually works for this brand based on real campaign data.`;
     const usr = `Here is Nectar Life's real campaign performance data across Meta Ads, Email, and SMS:\n\n${JSON.stringify(dump,null,2)}\n\nExtract a performance playbook. Identify:\n- Which campaign types/names/themes performed best and why\n- Patterns in what drives high open rates, click rates, ROAS\n- Specific offers, framing styles, or timing patterns that outperform\n- What underperforms and should be avoided\n\nWrite this as a concise bulleted playbook titled "NECTAR LIFE PERFORMANCE PLAYBOOK". Be specific with numbers. This will be used to guide future campaign decisions.`;
     const text = await callClaude(sys, usr);
-    setPlaybook(text);
-    localStorage.setItem("anaPlaybook", text);
+    savePlaybook(text);
     setUpdatingPlaybook(false);
   }
 
@@ -1258,27 +1259,14 @@ function Analytics() {
       {/* AI Insights */}
       {hasData&&(
         <div style={{marginTop:8}}>
-          {/* Playbook */}
-          <div style={{marginBottom:10,background:C.white,borderRadius:10,border:`1px solid ${C.gray200}`,overflow:"hidden"}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px"}}>
-              <div>
-                <span style={{fontSize:13,fontWeight:700,color:C.charcoal}}>Performance Playbook</span>
-                <span style={{fontSize:11.5,color:C.gray400,marginLeft:8}}>{playbook?"Built from your campaign history":"No playbook yet — update to learn what works"}</span>
-              </div>
-              <button onClick={updatePlaybook} disabled={updatingPlaybook} style={{padding:"6px 14px",borderRadius:7,background:updatingPlaybook?C.gray200:C.blush,color:updatingPlaybook?C.gray400:C.hotPink,border:`1.5px solid ${updatingPlaybook?C.gray200:C.hotPink}`,fontSize:12,fontWeight:700,cursor:updatingPlaybook?"not-allowed":"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-                {updatingPlaybook?<><Dots/> Analyzing...</>:"↺ Update Playbook"}
-              </button>
-            </div>
-            {playbook&&(
-              <div style={{borderTop:`1px solid ${C.gray200}`,padding:"12px 16px"}}>
-                <pre style={{margin:0,fontSize:12,color:C.charcoal,whiteSpace:"pre-wrap",fontFamily:"inherit",lineHeight:1.65,maxHeight:180,overflowY:"auto"}}>{playbook}</pre>
-              </div>
-            )}
+          <div style={{display:"flex",gap:8,marginBottom:8}}>
+            <button onClick={getInsights} disabled={loadingInsights} style={{flex:1,padding:"13px 20px",background:loadingInsights?C.gray200:`linear-gradient(135deg,${C.hotPink},${C.coral})`,color:loadingInsights?C.gray400:C.white,border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:loadingInsights?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:loadingInsights?"none":`0 4px 16px ${C.hotPink}40`,fontFamily:"inherit",letterSpacing:"0.04em"}}>
+              {loadingInsights?<><Dots/><span style={{fontSize:13}}>Analyzing campaigns...</span></>:"✦ Generate AI Insights"}
+            </button>
+            <button onClick={updatePlaybook} disabled={updatingPlaybook} title="Update Strategy Playbook from live data" style={{padding:"13px 16px",borderRadius:10,background:updatingPlaybook?C.gray200:C.blush,color:updatingPlaybook?C.gray400:C.hotPink,border:`1.5px solid ${updatingPlaybook?C.gray200:C.hotPink}`,fontSize:13,fontWeight:700,cursor:updatingPlaybook?"not-allowed":"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+              {updatingPlaybook?<Dots/>:"↺ Playbook"}
+            </button>
           </div>
-
-          <button onClick={getInsights} disabled={loadingInsights} style={{width:"100%",padding:"13px 20px",background:loadingInsights?C.gray200:`linear-gradient(135deg,${C.hotPink},${C.coral})`,color:loadingInsights?C.gray400:C.white,border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:loadingInsights?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:loadingInsights?"none":`0 4px 16px ${C.hotPink}40`,fontFamily:"inherit",letterSpacing:"0.04em"}}>
-            {loadingInsights?<><Dots/><span style={{fontSize:13}}>Analyzing campaigns...</span></>:"✦ Generate AI Insights"}
-          </button>
           {insights&&(
             <div style={{marginTop:14,padding:"16px 18px",background:C.white,borderRadius:10,border:`1px solid ${C.gray200}`}}>
               <p style={{margin:"0 0 10px",fontSize:11,fontWeight:700,color:C.gray600,letterSpacing:"0.06em",textTransform:"uppercase"}}>AI Performance Analysis</p>
@@ -1291,10 +1279,89 @@ function Analytics() {
   );
 }
 
+// ── STRATEGY ──────────────────────────────────────────────────────────────────
+function Strategy({ playbook, savePlaybook }) {
+  const [editing,setEditing] = useState(false);
+  const [draft,setDraft] = useState(playbook);
+  const [saved,setSaved] = useState(false);
+
+  function handleSave() {
+    savePlaybook(draft);
+    setEditing(false);
+    setSaved(true);
+    setTimeout(()=>setSaved(false),2000);
+  }
+
+  function handleReset() {
+    if (!window.confirm("Reset to the built-in baseline playbook? Any custom edits will be lost.")) return;
+    setDraft(NECTAR_PLAYBOOK);
+    savePlaybook(NECTAR_PLAYBOOK);
+    setEditing(false);
+  }
+
+  const sections = playbook.split(/\n## /).filter(Boolean).map((s,i)=>i===0?s:("## "+s));
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20,gap:12}}>
+        <div>
+          <h2 style={{margin:"0 0 4px",fontSize:18,fontWeight:700,color:C.charcoal}}>Performance Playbook</h2>
+          <p style={{margin:0,fontSize:13,color:C.gray400,lineHeight:1.5}}>What works for Nectar Life — injected into every AI generation across the app. Update from live data in the Analytics tab.</p>
+        </div>
+        <div style={{display:"flex",gap:8,flexShrink:0}}>
+          {editing ? (
+            <>
+              <button onClick={handleReset} style={{padding:"7px 14px",borderRadius:8,background:"none",border:`1.5px solid ${C.gray200}`,color:C.gray400,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Reset</button>
+              <button onClick={()=>{setEditing(false);setDraft(playbook);}} style={{padding:"7px 14px",borderRadius:8,background:"none",border:`1.5px solid ${C.gray200}`,color:C.gray600,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Cancel</button>
+              <button onClick={handleSave} style={{padding:"7px 14px",borderRadius:8,background:`linear-gradient(135deg,${C.hotPink},${C.coral})`,color:C.white,border:"none",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Save</button>
+            </>
+          ) : (
+            <button onClick={()=>{setDraft(playbook);setEditing(true);}} style={{padding:"7px 14px",borderRadius:8,background:C.blush,color:C.hotPink,border:`1.5px solid ${C.hotPink}`,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>Edit</button>
+          )}
+          {saved&&<span style={{fontSize:12,color:"#16A34A",fontWeight:600,alignSelf:"center"}}>Saved</span>}
+        </div>
+      </div>
+
+      {editing ? (
+        <textarea
+          value={draft}
+          onChange={e=>setDraft(e.target.value)}
+          style={{width:"100%",minHeight:520,padding:"16px",borderRadius:10,border:`1.5px solid ${C.hotPink}`,fontSize:12.5,fontFamily:"'Georgia','Times New Roman',serif",lineHeight:1.7,color:C.charcoal,background:C.white,boxSizing:"border-box",resize:"vertical",outline:"none"}}
+        />
+      ) : (
+        <div>
+          {sections.map((section,i)=>{
+            const lines = section.split("\n");
+            const title = lines[0].replace(/^#+\s*/,"").trim();
+            const body = lines.slice(1).join("\n").trim();
+            const isHeader = section.startsWith("##") || i===0;
+            return (
+              <div key={i} style={{background:C.white,borderRadius:12,border:`1px solid ${C.gray200}`,padding:"16px 18px",marginBottom:12}}>
+                {title&&<p style={{margin:"0 0 10px",fontSize:11,fontWeight:700,color:C.hotPink,letterSpacing:"0.07em",textTransform:"uppercase"}}>{title}</p>}
+                <pre style={{margin:0,fontSize:12.5,color:C.charcoal,whiteSpace:"pre-wrap",fontFamily:"'Georgia','Times New Roman',serif",lineHeight:1.75}}>{body}</pre>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <p style={{marginTop:16,fontSize:11.5,color:C.gray400,textAlign:"center"}}>
+        To update with fresh data, go to <strong>Analytics</strong> → load data → click <strong>↺ Playbook</strong>
+      </p>
+    </div>
+  );
+}
+
 // ── APP SHELL ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [tab,setTab]=useState("social");
-  const [ctx,setCtx]=useState(null); // Active campaign context — flows across all tabs
+  const [ctx,setCtx]=useState(null);
+  const [playbook,setPlaybook]=useState(()=>localStorage.getItem("anaPlaybook")||NECTAR_PLAYBOOK);
+
+  function savePlaybook(text) {
+    setPlaybook(text);
+    localStorage.setItem("anaPlaybook",text);
+  }
 
   const tabs=[
     {id:"social",label:"Social",icon:"✦",sub:"Captions + direction"},
@@ -1302,16 +1369,18 @@ export default function App() {
     {id:"photo",label:"Photo Brief",icon:"◉",sub:"Asset brief"},
     {id:"visuals",label:"Visuals",icon:"✿",sub:"AI image gen"},
     {id:"analytics",label:"Analytics",icon:"▲",sub:"Live performance"},
+    {id:"strategy",label:"Strategy",icon:"◆",sub:"Playbook + learnings"},
   ];
 
   const active=tabs.find(t=>t.id===tab);
 
   const tabContent = {
-    social:    <Social ctx={ctx} />,
-    campaign:  <Campaign setCtx={setCtx} />,
-    photo:     <PhotoBrief ctx={ctx} />,
+    social:    <Social ctx={ctx} playbook={playbook}/>,
+    campaign:  <Campaign setCtx={setCtx} playbook={playbook}/>,
+    photo:     <PhotoBrief ctx={ctx} playbook={playbook}/>,
     visuals:   <Visuals ctx={ctx} />,
-    analytics: <Analytics />,
+    analytics: <Analytics playbook={playbook} savePlaybook={savePlaybook}/>,
+    strategy:  <Strategy playbook={playbook} savePlaybook={savePlaybook}/>,
   }[tab];
 
   return (
