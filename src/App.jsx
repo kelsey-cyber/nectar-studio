@@ -852,14 +852,35 @@ function Analytics() {
   const [insights,setInsights] = useState("");
   const [loadingInsights,setLoadingInsights] = useState(false);
 
+  const [extending,setExtending] = useState(false);
+  const [extendMsg,setExtendMsg] = useState("");
+
   const metaConnected = !!(cfg.metaToken && cfg.metaAccountId);
   const klConnected = !!cfg.klaviyoKey;
 
   function saveCfg(k,v) {
-    const storageKey = k==="metaToken"?"anaMetaToken":k==="metaAccountId"?"anaMetaAccId":"anaKlaviyoKey";
+    const storageKey = k==="metaToken"?"anaMetaToken":k==="metaAccountId"?"anaMetaAccId":k==="metaTokenExpiry"?"anaMetaTokenExpiry":"anaKlaviyoKey";
     localStorage.setItem(storageKey,v);
     setCfg(p=>({...p,[k]:v}));
   }
+
+  async function extendMetaToken() {
+    if (!cfg.metaToken) return;
+    setExtending(true); setExtendMsg("");
+    try {
+      const r = await fetch("/api/meta-refresh-token",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ token:cfg.metaToken }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      saveCfg("metaToken", d.access_token);
+      const expiry = d.expires_in ? Date.now() + d.expires_in*1000 : null;
+      if (expiry) { saveCfg("metaTokenExpiry", String(expiry)); }
+      setExtendMsg("Token extended to 60 days and saved.");
+    } catch(e) { setExtendMsg("Failed: "+e.message); }
+    setExtending(false);
+  }
+
+  const metaTokenExpiry = localStorage.getItem("anaMetaTokenExpiry") ? parseInt(localStorage.getItem("anaMetaTokenExpiry")) : null;
+  const metaTokenDaysLeft = metaTokenExpiry ? Math.ceil((metaTokenExpiry - Date.now()) / 86400000) : null;
 
   async function fetchMeta() {
     if (!metaConnected) return;
@@ -1025,8 +1046,17 @@ function Analytics() {
           <div style={{padding:"0 16px 16px",borderTop:`1px solid ${C.gray200}`}}>
             <div style={{paddingTop:16,marginBottom:16}}>
               <p style={{margin:"0 0 3px",fontSize:11,fontWeight:700,color:C.charcoal,letterSpacing:"0.05em",textTransform:"uppercase"}}>Meta Ads</p>
-              <p style={{margin:"0 0 8px",fontSize:11.5,color:C.gray400,lineHeight:1.5}}>Graph API Explorer → generate token with <strong>ads_read</strong> → extend via Token Debugger for 60 days.</p>
+              <p style={{margin:"0 0 8px",fontSize:11.5,color:C.gray400,lineHeight:1.5}}>Paste a short-lived token from Graph API Explorer, then click <strong>Extend to 60 days</strong> to make it last.</p>
+              {metaTokenDaysLeft!=null&&(
+                <p style={{margin:"0 0 8px",fontSize:12,fontWeight:600,color:metaTokenDaysLeft<=5?"#C0392B":metaTokenDaysLeft<=14?"#D97706":"#16A34A"}}>
+                  {metaTokenDaysLeft>0?`Token expires in ${metaTokenDaysLeft} day${metaTokenDaysLeft===1?"":"s"}`:"Token has expired"}
+                </p>
+              )}
               <input value={cfg.metaToken} onChange={e=>saveCfg("metaToken",e.target.value)} type="password" placeholder="Meta Access Token" style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:12.5,fontFamily:"inherit",marginBottom:8,boxSizing:"border-box",outline:"none"}}/>
+              <button onClick={extendMetaToken} disabled={extending||!cfg.metaToken} style={{width:"100%",padding:"8px 12px",borderRadius:8,background:extending||!cfg.metaToken?C.gray200:`linear-gradient(135deg,${C.hotPink},${C.coral})`,color:extending||!cfg.metaToken?C.gray400:C.white,border:"none",fontSize:12.5,fontWeight:700,cursor:extending||!cfg.metaToken?"not-allowed":"pointer",fontFamily:"inherit",marginBottom:8}}>
+                {extending?"Extending...":"Extend to 60 Days"}
+              </button>
+              {extendMsg&&<p style={{margin:"0 0 8px",fontSize:12,color:extendMsg.startsWith("Failed")?"#C0392B":"#16A34A",fontWeight:600}}>{extendMsg}</p>}
               <input value={cfg.metaAccountId} onChange={e=>saveCfg("metaAccountId",e.target.value)} placeholder="Ad Account ID (numbers only)" style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${C.gray200}`,fontSize:12.5,fontFamily:"inherit",boxSizing:"border-box",outline:"none"}}/>
             </div>
             <div>
@@ -1041,6 +1071,7 @@ function Analytics() {
       {/* ── Meta Ads ── */}
       <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.gray200}`,padding:"16px 18px",marginBottom:16}}>
         <SectionHeader title="Paid Ads" sub="Meta · Facebook + Instagram" connected={metaConnected} loading={loading.meta} onRefresh={fetchMeta}/>
+        {metaTokenDaysLeft!=null&&metaTokenDaysLeft<=5&&<p style={{margin:"0 0 10px",fontSize:12,color:"#C0392B",fontWeight:600,cursor:"pointer"}} onClick={()=>setShowSetup(true)}>{metaTokenDaysLeft<=0?"Token expired — click Platform Connections to refresh.":`Token expires in ${metaTokenDaysLeft} day${metaTokenDaysLeft===1?"":"s"} — click Platform Connections to extend.`}</p>}
         {errors.meta&&<p style={{margin:"0 0 10px",fontSize:12,color:"#C0392B",fontWeight:600}}>{errors.meta}</p>}
         <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
           <KpiCard label="Spend"       value={spend!=null?`$${spend.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0})}`:null} scheme="spend"    loading={loading.meta&&!mSum}/>
