@@ -872,6 +872,339 @@ function SectionHeader({ title, sub, connected, loading, onRefresh }) {
   );
 }
 
+// ── LAUNCH ────────────────────────────────────────────────────────────────────
+function Launch({ playbook }) {
+  const STEPS = ["Brief", "Copy", "UTMs", "Handoff"];
+  const [step, setStep] = useState(0);
+
+  // Step 0 – Brief
+  const [name, setName] = useState("");
+  const [objective, setObjective] = useState("conversions");
+  const [budget, setBudget] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [landingPage, setLandingPage] = useState("https://nectarusa.com");
+  const [audience, setAudience] = useState("tof_broad");
+  const [products, setProducts] = useState("");
+  const [mechanic, setMechanic] = useState("");
+  const [channels, setChannels] = useState({ email: true, sms: false, meta: false });
+  const [notes, setNotes] = useState("");
+
+  // Step 1 – Copy
+  const [loadingCopy, setLoadingCopy] = useState(false);
+  const [generatedCopy, setGeneratedCopy] = useState(null);
+  const [editedCopy, setEditedCopy] = useState({});
+
+  // Step 2 – UTMs
+  const [utms, setUtms] = useState(null);
+  const [cpd, setCpd] = useState({});
+
+  // Step 3 – Handoff
+  const [checks, setChecks] = useState({});
+  const [exported, setExported] = useState(false);
+
+  const AUDIENCES = [
+    { v:"tof_broad",      l:"TOF Broad",      desc:"Cold audience, Advantage+ enabled" },
+    { v:"retargeting",    l:"Retargeting",     desc:"Site visitors + social engagers (30d)" },
+    { v:"lookalike",      l:"Lookalike",       desc:"1–3% LAL from purchasers" },
+    { v:"super_engaged",  l:"Super Engaged",   desc:"Klaviyo top segment (~2k)" },
+    { v:"engaged_180",    l:"Engaged 180",     desc:"Klaviyo 180-day engaged (~12k)" },
+    { v:"all_list",       l:"Full List",       desc:"Major sends only — all email / SMS" },
+  ];
+
+  const CHECKLIST = [
+    { k:"lp",     l:"Landing page is live and loads correctly" },
+    { k:"copy",   l:"Campaign copy reviewed and approved" },
+    { k:"utms",   l:"UTM links tested and working" },
+    { k:"pixel",  l:"Pixel firing on landing page (Meta only)" },
+    { k:"budget", l:"Budget confirmed and approved" },
+    { k:"dates",  l:"Campaign start / end dates confirmed" },
+    { k:"assets", l:"Creative assets ready and delivered" },
+    { k:"seg",    l:"Segmentation set up in Klaviyo (email / SMS)" },
+  ];
+
+  async function generateCopy() {
+    setLoadingCopy(true); setGeneratedCopy(null);
+    const chl = Object.entries(channels).filter(([,v])=>v).map(([k])=>k).join(", ");
+    const aud = AUDIENCES.find(a=>a.v===audience);
+    const playbookCtx = playbook ? `\n\nPERFORMANCE PLAYBOOK (use to inform decisions):\n${playbook.slice(0,2000)}` : "";
+    const sys = `${BRAND_DNA.identity}\n\nGenerate campaign copy. Lead with ritual/ingredient stories, never the discount. Warmth over urgency. No em-dashes.${playbookCtx}`;
+    const usr = `Generate all campaign outputs for this brief:\nCAMPAIGN: ${name}\nMECHANIC: ${mechanic||"none"}\nPRODUCTS: ${products}\nOBJECTIVE: ${objective}\nAUDIENCE: ${aud?.l} — ${aud?.desc}\nCHANNELS: ${chl}\n\nReturn EXACTLY:\nEMAIL SUBJECT LINE OPTIONS:\n1. [option]\n2. [option]\n3. [option]\n\nEMAIL PREVIEW TEXT:\n[under 90 chars]\n\nEMAIL BODY COPY (Send 1):\n[150-200 words, ritual story first, offer second, clear CTA]\n\nRESEND SUBJECT LINE OPTIONS:\n1. [option]\n2. [option]\n3. [option]\n\nEMAIL BODY COPY (Non-Opener Resend):\n[80-100 words, different angle]\n\nSMS OPTION 1 (under 160 chars):\n[sms]\n\nSMS OPTION 2 (under 160 chars):\n[sms]\n\nMETA AD HEADLINES (3):\n1. [headline]\n2. [headline]\n3. [headline]\n\nAD BODY COPY:\n[2-3 sentences, mobile-first]\n\nCTA BUTTON TEXT:\n[ALL CAPS, 2-4 words]`;
+    const res = await callClaude(sys, usr);
+    setLoadingCopy(false);
+    const keys = ["EMAIL SUBJECT LINE OPTIONS:","EMAIL PREVIEW TEXT:","EMAIL BODY COPY (Send 1):","RESEND SUBJECT LINE OPTIONS:","EMAIL BODY COPY (Non-Opener Resend):","SMS OPTION 1","SMS OPTION 2","META AD HEADLINES","AD BODY COPY:","CTA BUTTON TEXT:"];
+    const s = {};
+    for (let i=0; i<keys.length; i++) {
+      const k=keys[i], nk=keys[i+1], st=res.indexOf(k);
+      if (st===-1) continue;
+      const en = nk ? res.indexOf(nk) : res.length;
+      s[k] = res.slice(st+k.length, en!==-1?en:undefined).trim();
+    }
+    const parsed = Object.keys(s).length>0 ? s : { raw:res };
+    setGeneratedCopy(parsed);
+    setEditedCopy({ ...parsed });
+  }
+
+  function buildUtms() {
+    const date = startDate ? new Date(startDate+"T12:00:00") : new Date();
+    const month = date.toLocaleString("en-US",{month:"long"}).toLowerCase();
+    const year = date.getFullYear();
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+    const camp = `nectar-${month}-${year}-${objective}`;
+    const base = landingPage || "https://nectarusa.com";
+    const result = {};
+    if (channels.meta)  result.meta  = { label:"Meta Ads", source:"meta",    medium:"paid_social", campaign:camp, content:`v1-tof-${slug}`, url:`${base}?utm_source=meta&utm_medium=paid_social&utm_campaign=${camp}&utm_content=v1-tof-${slug}` };
+    if (channels.email) result.email = { label:"Email",    source:"klaviyo", medium:"email",       campaign:camp, content:slug,           url:`${base}?utm_source=klaviyo&utm_medium=email&utm_campaign=${camp}&utm_content=${slug}` };
+    if (channels.sms)   result.sms   = { label:"SMS",      source:"klaviyo", medium:"sms",         campaign:camp, content:slug,           url:`${base}?utm_source=klaviyo&utm_medium=sms&utm_campaign=${camp}&utm_content=${slug}` };
+    setUtms(result);
+  }
+
+  function cp(k, text) {
+    navigator.clipboard.writeText(text);
+    setCpd(p=>({...p,[k]:true}));
+    setTimeout(()=>setCpd(p=>({...p,[k]:false})),2000);
+  }
+
+  function buildHandoffDoc() {
+    const aud = AUDIENCES.find(a=>a.v===audience);
+    const lines = [
+      `NECTAR LIFE — ${(name||"CAMPAIGN").toUpperCase()} CAMPAIGN BRIEF`,
+      `Generated: ${new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}`,
+      "═".repeat(56), "",
+      "OVERVIEW",
+      "─".repeat(24),
+      `Campaign:    ${name}`,
+      `Objective:   ${objective}`,
+      `Budget:      $${budget}/day`,
+      `Dates:       ${startDate||"TBD"} → ${endDate||"TBD"}`,
+      `Audience:    ${aud?.l} — ${aud?.desc}`,
+      `Channels:    ${Object.entries(channels).filter(([,v])=>v).map(([k])=>k.toUpperCase()).join(", ")}`,
+      `Products:    ${products}`,
+      `Mechanic:    ${mechanic||"None"}`,
+      `Landing Page: ${landingPage}`,
+      notes ? `Notes:       ${notes}` : "",
+      "",
+      "COPY ASSETS",
+      "─".repeat(24),
+    ];
+    if (editedCopy?.raw) {
+      lines.push(editedCopy.raw);
+    } else {
+      Object.entries(editedCopy||{}).forEach(([k,v])=>{ lines.push(k.trim()); lines.push(v); lines.push(""); });
+    }
+    if (utms && Object.keys(utms).length) {
+      lines.push("", "TRACKING / UTM URLS", "─".repeat(24));
+      Object.values(utms).forEach(u=>{ lines.push(`${u.label}:`); lines.push(u.url); lines.push(""); });
+    }
+    lines.push("", "ASSET SPECS NEEDED", "─".repeat(24));
+    if (channels.meta)  lines.push("Meta Ads:", "  • Reel / Story: 1080 × 1920px (9:16) — video preferred, max 60s", "  • Feed:          1080 × 1080px (1:1)", "  • Landscape:     1920 × 1080px (16:9)", "");
+    if (channels.email) lines.push("Email:", "  • Header image: 600px wide, 2:1 ratio, JPG or PNG", "");
+    if (channels.sms)   lines.push("SMS:", "  • No image required — link only", "");
+    return lines.filter(l=>l!==undefined).join("\n");
+  }
+
+  function exportHandoff() {
+    downloadText(`${(name||"campaign").toLowerCase().replace(/\s+/g,"-")}-brief.txt`, buildHandoffDoc());
+    setExported(true);
+    setTimeout(()=>setExported(false), 3000);
+  }
+
+  const allChecked = CHECKLIST.every(c=>checks[c.k]);
+
+  // ── STEP INDICATOR ──────────────────────────────────────────────────────────
+  function StepBar() {
+    return (
+      <div style={{display:"flex",alignItems:"center",marginBottom:28}}>
+        {STEPS.map((s,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",flex:i<STEPS.length-1?1:"none"}}>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <div onClick={()=>{ if(i<step) setStep(i); }} style={{width:28,height:28,borderRadius:"50%",background:i<=step?C.hotPink:C.gray200,color:i<=step?C.white:C.gray400,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,cursor:i<step?"pointer":"default",transition:"all 0.2s",flexShrink:0}}>
+                {i<step ? "✓" : i+1}
+              </div>
+              <span style={{fontSize:10,fontWeight:i===step?700:500,color:i===step?C.hotPink:C.gray400,whiteSpace:"nowrap",letterSpacing:"0.04em"}}>{s}</span>
+            </div>
+            {i<STEPS.length-1 && <div style={{flex:1,height:2,background:i<step?C.hotPink:C.gray200,margin:"0 6px",marginBottom:16,transition:"background 0.3s"}}/>}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── NAV BUTTONS ─────────────────────────────────────────────────────────────
+  function Nav({ onNext, nextLabel="Next →", nextDisabled=false, onBack=true }) {
+    return (
+      <div style={{display:"flex",gap:10,marginTop:24}}>
+        {step>0 && onBack && (
+          <button onClick={()=>setStep(s=>s-1)} style={{padding:"11px 20px",borderRadius:10,border:`1.5px solid ${C.gray200}`,background:C.white,color:C.gray600,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>← Back</button>
+        )}
+        <button onClick={onNext} disabled={nextDisabled} style={{flex:1,padding:"13px 20px",borderRadius:10,border:"none",background:nextDisabled?C.gray200:`linear-gradient(135deg,${C.hotPink},${C.coral})`,color:nextDisabled?C.gray400:C.white,fontSize:13,fontWeight:700,cursor:nextDisabled?"not-allowed":"pointer",transition:"all 0.2s",boxShadow:nextDisabled?"none":`0 4px 16px ${C.hotPink}40`,fontFamily:"inherit"}}>{nextLabel}</button>
+      </div>
+    );
+  }
+
+  // ── STEP 0: BRIEF ───────────────────────────────────────────────────────────
+  if (step===0) return (
+    <div>
+      <StepBar/>
+      <Field label="Campaign Name" value={name} onChange={setName} placeholder="e.g. Easter Sale B2G1, Spring Collection Launch"/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
+        <Dropdown label="Objective" value={objective} onChange={setObjective} opts={[{v:"conversions",l:"Conversions"},{v:"traffic",l:"Traffic"},{v:"awareness",l:"Awareness"},{v:"retention",l:"Re-engagement"},{v:"acquisition",l:"New Customers"}]}/>
+        <Field label="Daily Budget ($)" value={budget} onChange={setBudget} placeholder="e.g. 50"/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 16px"}}>
+        <Field label="Start Date" value={startDate} onChange={setStartDate} placeholder="YYYY-MM-DD"/>
+        <Field label="End Date" value={endDate} onChange={setEndDate} placeholder="YYYY-MM-DD"/>
+      </div>
+      <Field label="Landing Page URL" value={landingPage} onChange={setLandingPage} placeholder="https://nectarusa.com/products/..."/>
+      <div style={{marginBottom:16}}>
+        <label style={{display:"block",fontSize:12,fontWeight:700,color:C.gray600,marginBottom:8,letterSpacing:"0.05em",textTransform:"uppercase"}}>Audience</label>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {AUDIENCES.map(a=>(
+            <button key={a.v} onClick={()=>setAudience(a.v)} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:9,border:`1.5px solid ${audience===a.v?C.hotPink:C.gray200}`,background:audience===a.v?C.blush:C.white,cursor:"pointer",textAlign:"left",transition:"all 0.15s"}}>
+              <div style={{width:14,height:14,borderRadius:"50%",border:`2px solid ${audience===a.v?C.hotPink:C.gray400}`,background:audience===a.v?C.hotPink:"transparent",flexShrink:0,transition:"all 0.15s"}}/>
+              <div>
+                <span style={{fontSize:12.5,fontWeight:700,color:audience===a.v?C.hotPink:C.charcoal}}>{a.l}</span>
+                <span style={{fontSize:11.5,color:C.gray400,marginLeft:8}}>{a.desc}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+      <Field label="Featured Products" value={products} onChange={setProducts} placeholder="e.g. Jumbo Body Butter, Whipped Soap, Essential Oil Bath Bombs" area/>
+      <Field label="Promo Mechanic" value={mechanic} onChange={setMechanic} placeholder="e.g. B2G1 small soaps, no discount, 20% off body care"/>
+      <div style={{marginBottom:16}}>
+        <label style={{display:"block",fontSize:12,fontWeight:700,color:C.gray600,marginBottom:8,letterSpacing:"0.05em",textTransform:"uppercase"}}>Channels</label>
+        <div style={{display:"flex",gap:8}}>
+          {[["email","Email"],["sms","SMS"],["meta","Meta Ads"]].map(([k,l])=>(
+            <button key={k} onClick={()=>setChannels(p=>({...p,[k]:!p[k]}))} style={{padding:"8px 14px",borderRadius:8,fontSize:12.5,cursor:"pointer",border:`1.5px solid ${channels[k]?C.hotPink:C.gray200}`,background:channels[k]?C.blush:C.white,color:channels[k]?C.hotPink:C.gray600,fontWeight:channels[k]?700:500,transition:"all 0.15s",fontFamily:"inherit"}}>{l}</button>
+          ))}
+        </div>
+      </div>
+      <Field label="Notes for Agency" value={notes} onChange={setNotes} placeholder="Any special instructions, deadlines, or context..." area/>
+      <Nav onNext={()=>{ generateCopy(); setStep(1); }} nextLabel="Generate Copy →" nextDisabled={!name||!products}/>
+    </div>
+  );
+
+  // ── STEP 1: COPY ────────────────────────────────────────────────────────────
+  if (step===1) return (
+    <div>
+      <StepBar/>
+      {loadingCopy ? (
+        <div style={{textAlign:"center",padding:"60px 0"}}>
+          <Dots/>
+          <p style={{marginTop:14,fontSize:13,color:C.gray400}}>Writing campaign copy...</p>
+        </div>
+      ) : generatedCopy ? (
+        <div>
+          <p style={{fontSize:12.5,color:C.gray400,marginBottom:16}}>All copy is editable — click any field to adjust before moving on.</p>
+          {generatedCopy.raw ? (
+            <div>
+              <textarea value={editedCopy.raw||""} onChange={e=>setEditedCopy({raw:e.target.value})} style={{width:"100%",minHeight:320,padding:"14px",borderRadius:10,border:`1.5px solid ${C.gray200}`,fontSize:13,lineHeight:1.6,fontFamily:"inherit",color:C.charcoal,background:C.white,boxSizing:"border-box",resize:"vertical",outline:"none"}}/>
+            </div>
+          ) : (
+            Object.entries(editedCopy).map(([k,v])=>(
+              <div key={k} style={{background:C.white,border:`1px solid ${C.gray200}`,borderRadius:12,overflow:"hidden",marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 14px",background:C.cream,borderBottom:`1px solid ${C.gray200}`}}>
+                  <span style={{fontSize:10.5,fontWeight:700,color:C.gray600,letterSpacing:"0.07em",textTransform:"uppercase"}}>{k.replace(/[:()\n]/g," ").replace(/\s+/g," ").trim()}</span>
+                  <button onClick={()=>cp(k,v)} style={{fontSize:11,padding:"3px 9px",borderRadius:6,border:`1px solid ${cpd[k]?C.hotPink:C.gray400}`,background:cpd[k]?C.blush:C.white,color:cpd[k]?C.hotPink:C.gray600,cursor:"pointer",fontFamily:"inherit"}}>{cpd[k]?"Copied!":"Copy"}</button>
+                </div>
+                <textarea value={v} onChange={e=>setEditedCopy(p=>({...p,[k]:e.target.value}))} style={{width:"100%",minHeight:72,padding:"12px 14px",fontSize:13,lineHeight:1.6,color:C.charcoal,border:"none",background:C.white,resize:"vertical",fontFamily:"inherit",outline:"none",boxSizing:"border-box"}}/>
+              </div>
+            ))
+          )}
+          <Nav onNext={()=>{ buildUtms(); setStep(2); }} nextLabel="Generate UTMs →"/>
+        </div>
+      ) : (
+        <div style={{textAlign:"center",padding:"40px 0"}}>
+          <p style={{color:C.gray400,fontSize:13}}>Something went wrong. <button onClick={()=>{ generateCopy(); }} style={{color:C.hotPink,background:"none",border:"none",cursor:"pointer",fontSize:13,fontFamily:"inherit",textDecoration:"underline"}}>Try again</button></p>
+          <Nav onNext={()=>setStep(0)} nextLabel="← Back to Brief" onBack={false}/>
+        </div>
+      )}
+    </div>
+  );
+
+  // ── STEP 2: UTMS ────────────────────────────────────────────────────────────
+  if (step===2) return (
+    <div>
+      <StepBar/>
+      {utms && Object.keys(utms).length>0 ? (
+        <div>
+          <p style={{fontSize:12.5,color:C.gray400,marginBottom:16}}>Generated from your brief. Copy each URL and paste into your platform.</p>
+          {Object.values(utms).map(u=>(
+            <div key={u.label} style={{background:C.white,border:`1px solid ${C.gray200}`,borderRadius:12,padding:"14px 16px",marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <span style={{fontSize:11,fontWeight:700,color:C.hotPink,letterSpacing:"0.07em",textTransform:"uppercase"}}>{u.label}</span>
+                <button onClick={()=>cp(u.label,u.url)} style={{fontSize:11,padding:"3px 9px",borderRadius:6,border:`1px solid ${cpd[u.label]?C.hotPink:C.gray400}`,background:cpd[u.label]?C.blush:C.white,color:cpd[u.label]?C.hotPink:C.gray600,cursor:"pointer",fontFamily:"inherit"}}>{cpd[u.label]?"Copied!":"Copy URL"}</button>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 16px",marginBottom:10}}>
+                {[["Source",u.source],["Medium",u.medium],["Campaign",u.campaign],["Content",u.content]].map(([l,v])=>(
+                  <div key={l}>
+                    <span style={{fontSize:10,color:C.gray400,textTransform:"uppercase",letterSpacing:"0.05em"}}>{l}: </span>
+                    <span style={{fontSize:11,color:C.charcoal,fontWeight:600}}>{v}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{background:C.gray100,borderRadius:7,padding:"8px 10px",wordBreak:"break-all"}}>
+                <span style={{fontSize:11,color:C.gray600,fontFamily:"monospace"}}>{u.url}</span>
+              </div>
+            </div>
+          ))}
+          {channels.meta && (
+            <div style={{background:C.blush,border:`1px solid ${C.primaryPink}`,borderRadius:10,padding:"12px 14px",marginTop:4}}>
+              <p style={{margin:"0 0 6px",fontSize:11,fontWeight:700,color:C.hotPink,textTransform:"uppercase",letterSpacing:"0.06em"}}>Asset Specs Needed — Meta Ads</p>
+              <p style={{margin:"2px 0",fontSize:12,color:C.charcoal}}>• Reel / Story: <strong>1080 × 1920px</strong> (9:16) — video preferred, max 60s</p>
+              <p style={{margin:"2px 0",fontSize:12,color:C.charcoal}}>• Feed Square: <strong>1080 × 1080px</strong> (1:1)</p>
+              <p style={{margin:"2px 0",fontSize:12,color:C.charcoal}}>• Landscape: <strong>1920 × 1080px</strong> (16:9)</p>
+            </div>
+          )}
+          {channels.email && (
+            <div style={{background:C.blush,border:`1px solid ${C.primaryPink}`,borderRadius:10,padding:"12px 14px",marginTop:8}}>
+              <p style={{margin:"0 0 6px",fontSize:11,fontWeight:700,color:C.hotPink,textTransform:"uppercase",letterSpacing:"0.06em"}}>Asset Specs Needed — Email</p>
+              <p style={{margin:"2px 0",fontSize:12,color:C.charcoal}}>• Header image: <strong>600px wide</strong>, 2:1 ratio, JPG or PNG</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p style={{color:C.gray400,fontSize:13}}>No UTMs generated yet.</p>
+      )}
+      <Nav onNext={()=>setStep(3)} nextLabel="Pre-Flight Checklist →"/>
+    </div>
+  );
+
+  // ── STEP 3: HANDOFF ─────────────────────────────────────────────────────────
+  return (
+    <div>
+      <StepBar/>
+      <p style={{fontSize:12.5,color:C.gray400,marginBottom:16}}>Check everything off before sending to the agency.</p>
+      <div style={{marginBottom:20}}>
+        {CHECKLIST.map(c=>(
+          <button key={c.k} onClick={()=>setChecks(p=>({...p,[c.k]:!p[c.k]}))} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 12px",borderRadius:9,border:`1.5px solid ${checks[c.k]?C.hotPink:C.gray200}`,background:checks[c.k]?C.blush:C.white,marginBottom:6,cursor:"pointer",textAlign:"left",transition:"all 0.15s",fontFamily:"inherit"}}>
+            <div style={{width:18,height:18,borderRadius:5,border:`2px solid ${checks[c.k]?C.hotPink:C.gray400}`,background:checks[c.k]?C.hotPink:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s"}}>
+              {checks[c.k]&&<span style={{color:C.white,fontSize:11,fontWeight:700,lineHeight:1}}>✓</span>}
+            </div>
+            <span style={{fontSize:13,color:checks[c.k]?C.hotPink:C.charcoal,fontWeight:checks[c.k]?600:400}}>{c.l}</span>
+          </button>
+        ))}
+      </div>
+      {allChecked && (
+        <div style={{background:"#F0FDF4",border:"1.5px solid #16A34A",borderRadius:10,padding:"10px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:16}}>✅</span>
+          <span style={{fontSize:13,color:"#15803D",fontWeight:600}}>All clear — ready to hand off</span>
+        </div>
+      )}
+      <div style={{display:"flex",gap:8,marginBottom:8}}>
+        <button onClick={exportHandoff} style={{flex:1,padding:"12px 16px",borderRadius:10,border:"none",background:`linear-gradient(135deg,${C.hotPink},${C.coral})`,color:C.white,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",boxShadow:`0 4px 16px ${C.hotPink}40`}}>
+          {exported ? "✓ Exported!" : "⬇ Export Brief (.txt)"}
+        </button>
+        <button onClick={()=>{ navigator.clipboard.writeText(buildHandoffDoc()); cp("all",""); }} style={{padding:"12px 16px",borderRadius:10,border:`1.5px solid ${C.hotPink}`,background:C.blush,color:C.hotPink,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+          {cpd[""]?"Copied!":"Copy All"}
+        </button>
+      </div>
+      <button onClick={()=>setStep(0)} style={{width:"100%",padding:"10px",borderRadius:10,border:`1.5px solid ${C.gray200}`,background:C.white,color:C.gray400,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginTop:4}}>Start New Campaign</button>
+    </div>
+  );
+}
+
 function CampaignTable({ columns, rows }) {
   if (!rows||!rows.length) return null;
   return (
@@ -1366,6 +1699,7 @@ export default function App() {
   const tabs=[
     {id:"social",label:"Social",icon:"✦",sub:"Captions + direction"},
     {id:"campaign",label:"Campaign",icon:"◈",sub:"Email · SMS · Ads"},
+    {id:"launch",label:"Launch",icon:"→",sub:"Brief · UTMs · Handoff"},
     {id:"photo",label:"Photo Brief",icon:"◉",sub:"Asset brief"},
     {id:"visuals",label:"Visuals",icon:"✿",sub:"AI image gen"},
     {id:"analytics",label:"Analytics",icon:"▲",sub:"Live performance"},
@@ -1377,6 +1711,7 @@ export default function App() {
   const tabContent = {
     social:    <Social ctx={ctx} playbook={playbook}/>,
     campaign:  <Campaign setCtx={setCtx} playbook={playbook}/>,
+    launch:    <Launch playbook={playbook}/>,
     photo:     <PhotoBrief ctx={ctx} playbook={playbook}/>,
     visuals:   <Visuals ctx={ctx} />,
     analytics: <Analytics playbook={playbook} savePlaybook={savePlaybook}/>,
