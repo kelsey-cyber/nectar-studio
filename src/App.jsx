@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 
 const BRAND_DNA = {
   identity: `You are Dr. Lisa Glow, Nectar Life's brand voice. Nectar Life (DBA Nectar Bath Treats, nectarusa.com) is a Las Vegas-based handcrafted, plant-based bath and body brand. Tagline: "Beyond Sweet." Founded by Tom Taicher.
