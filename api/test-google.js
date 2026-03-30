@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   const loginCustomerId = process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID;
 
   // Step 1: check all vars present
-  const vars = { developerToken: !!developerToken, clientId: !!clientId, clientSecret: !!clientSecret, refreshToken: !!refreshToken, customerId, loginCustomerId };
+  const vars = { developerToken: !!developerToken, clientId: !!clientId, clientSecret: !!clientSecret, refreshToken: !!refreshToken, customerId: customerId || "MISSING", loginCustomerId: loginCustomerId || "MISSING" };
 
   // Step 2: try OAuth token exchange
   let accessToken = null, tokenError = null;
