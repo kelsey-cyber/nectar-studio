@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   let apiResult = null, apiError = null;
   if (accessToken) {
     try {
-      const r = await fetch(`https://googleads.googleapis.com/v16/customers/${customerId}/googleAds:searchStream`, {
+      const r = await fetch(`https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:searchStream`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${accessToken === "OK" ? (await (await fetch("https://oauth2.googleapis.com/token", { method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"}, body: new URLSearchParams({client_id:clientId,client_secret:clientSecret,refresh_token:refreshToken,grant_type:"refresh_token"})})).json()).access_token : ""}`,
