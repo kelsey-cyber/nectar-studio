@@ -1695,15 +1695,15 @@ function PriorityDot({ priority }) {
 
 function ActionItem({ action }) {
   return (
-    <div style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"10px 0", borderBottom:"1px solid #F5EDE8" }}>
-      <PriorityDot priority={action.priority} />
-      <div style={{ flex:1 }}>
-        <div style={{ fontSize:13, fontWeight:600, color:"#2D2D2D", marginBottom:2 }}>{action.title}</div>
-        <div style={{ fontSize:12, color:"#666", lineHeight:1.5 }}>{action.detail}</div>
+    <div style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"14px 0", borderBottom:"1px solid #F5EDE8" }}>
+      <div style={{ paddingTop:2, flexShrink:0 }}><PriorityDot priority={action.priority} /></div>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontSize:13, fontWeight:700, color:"#2D2D2D", marginBottom:4, lineHeight:1.4 }}>{action.title}</div>
+        <div style={{ fontSize:12, color:"#666", lineHeight:1.6, marginBottom: action.metric ? 8 : 0 }}>{action.detail}</div>
+        {action.metric && (
+          <span style={{ display:"inline-block", fontSize:11, fontWeight:700, color:PRIORITY_COLOR[action.priority]||"#999", background:PRIORITY_BG[action.priority]||"#f5f5f5", padding:"3px 10px", borderRadius:10 }}>{action.metric}</span>
+        )}
       </div>
-      {action.metric && (
-        <span style={{ fontSize:11, fontWeight:700, color:PRIORITY_COLOR[action.priority]||"#999", whiteSpace:"nowrap", background:PRIORITY_BG[action.priority]||"#f5f5f5", padding:"2px 8px", borderRadius:10 }}>{action.metric}</span>
-      )}
     </div>
   );
 }
@@ -1730,9 +1730,9 @@ function AgentCard({ agent, defaultOpen }) {
         </div>
       </div>
       {open && (
-        <div style={{ padding:"0 16px 14px" }}>
+        <div style={{ padding:"0 20px 16px" }}>
           {actions.map((a, i) => <ActionItem key={i} action={a} />)}
-          {agent.summary && <p style={{ fontSize:12, color:"#666", marginTop:12, lineHeight:1.6, borderTop:"1px solid #F5EDE8", paddingTop:12 }}>{agent.summary}</p>}
+          {agent.summary && <p style={{ fontSize:12, color:"#666", marginTop:14, lineHeight:1.7, borderTop:"1px solid #F5EDE8", paddingTop:14 }}>{agent.summary}</p>}
         </div>
       )}
     </div>
