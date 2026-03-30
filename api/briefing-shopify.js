@@ -29,12 +29,25 @@ export default async function handler(req, res) {
 
     const [orders7, orders30] = await Promise.all([fetchOrders(d7), fetchOrders(d30)]);
 
-    function summarizeOrders(orders) {
+    // Build set of customer emails/ids that ordered BEFORE the 7-day window (i.e. in days 8-30)
+    const prior30Ids = new Set(
+      orders30
+        .filter(o => !orders7.some(o7 => o7.id === o.id))
+        .map(o => o.customer?.id || o.customer?.email)
+        .filter(Boolean)
+    );
+
+    function summarizeOrders(orders, isWeekly = false) {
       const revenue = orders.reduce((s, o) => s + parseFloat(o.total_price || 0), 0);
       const count = orders.length;
       const aov = count > 0 ? revenue / count : 0;
-      const newCustomers = orders.filter(o => !o.customer || parseInt(o.customer?.orders_count || 0) <= 1).length;
-      const returningCustomers = count - newCustomers;
+      const returningCustomers = isWeekly
+        ? orders.filter(o => {
+            const key = o.customer?.id || o.customer?.email;
+            return key && prior30Ids.has(key);
+          }).length
+        : orders.filter(o => !o.customer || parseInt(o.customer?.orders_count || 0) <= 1 ? false : true).length;
+      const newCustomers = count - returningCustomers;
       const refunds = orders.filter(o => o.financial_status === "refunded" || o.financial_status === "partially_refunded").length;
       const refundRate = count > 0 ? (refunds / count * 100).toFixed(1) : 0;
 
@@ -72,8 +85,8 @@ export default async function handler(req, res) {
     }
 
     const [summary7, summary30, lowInventory] = await Promise.all([
-      Promise.resolve(summarizeOrders(orders7)),
-      Promise.resolve(summarizeOrders(orders30)),
+      Promise.resolve(summarizeOrders(orders7, true)),
+      Promise.resolve(summarizeOrders(orders30, false)),
       fetchInventory()
     ]);
 
