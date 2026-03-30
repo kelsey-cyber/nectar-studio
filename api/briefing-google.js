@@ -37,7 +37,7 @@ export default async function handler(req, res) {
       ...(loginCustomerId ? { "login-customer-id": loginCustomerId } : {})
     };
 
-    const gaqlBase = `https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:searchStream`;
+    const gaqlBase = `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`;
 
     async function query(gaql) {
       const r = await fetch(gaqlBase, {
@@ -46,11 +46,8 @@ export default async function handler(req, res) {
         body: JSON.stringify({ query: gaql })
       });
       const d = await r.json();
-      if (!Array.isArray(d)) {
-        if (d.error || d[0]?.error) throw new Error(JSON.stringify(d.error || d[0]?.error));
-        return d[0]?.results || [];
-      }
-      return d.flatMap(chunk => chunk.results || []);
+      if (d.error) throw new Error(JSON.stringify(d.error));
+      return d.results || [];
     }
 
     // Last 7 days date range

@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   let apiResult = null, apiError = null;
   if (accessToken) {
     try {
-      const r = await fetch(`https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:searchStream`, {
+      const r = await fetch(`https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${accessToken}`,
