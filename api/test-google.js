@@ -22,9 +22,16 @@ export default async function handler(req, res) {
     else tokenError = tokenData;
   } catch(e) { tokenError = e.message; }
 
-  // Step 3: try a simple API call
-  let apiResult = null, apiError = null;
+  // Step 3: check which Google account the token belongs to
+  let userInfo = null, apiResult = null, apiError = null;
   if (accessToken) {
+    try {
+      const uir = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo`, {
+        headers: { "Authorization": `Bearer ${accessToken}` }
+      });
+      userInfo = await uir.json();
+    } catch(e) { userInfo = { error: e.message }; }
+
     try {
       const r = await fetch(`https://googleads.googleapis.com/v19/customers/${customerId}/googleAds:search`, {
         method: "POST",
@@ -41,5 +48,5 @@ export default async function handler(req, res) {
     } catch(e) { apiError = e.message; }
   }
 
-  return res.status(200).json({ vars, tokenStatus: accessToken ? "OK" : tokenError, apiResult, apiError });
+  return res.status(200).json({ vars, tokenStatus: accessToken ? "OK" : tokenError, userInfo, apiResult, apiError });
 }
