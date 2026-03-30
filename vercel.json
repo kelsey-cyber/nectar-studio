@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "api/briefing.js": { "maxDuration": 60 },
+    "api/briefing-shopify.js": { "maxDuration": 30 },
+    "api/briefing-klaviyo.js": { "maxDuration": 30 },
+    "api/briefing-meta.js": { "maxDuration": 30 },
+    "api/briefing-google.js": { "maxDuration": 30 }
+  }
+}

@@ -21,8 +21,11 @@ async function callAgent(systemPrompt, data) {
     })
   });
   const result = await r.json();
+  if (result.error) return { error: result.error.message || "Anthropic API error", type: result.error.type };
   const text = result.content?.find(b => b.type === "text")?.text || "{}";
-  try { return JSON.parse(text); }
+  // Strip markdown fences if model wrapped the JSON
+  const cleaned = text.replace(/^```(?:json)?\n?/,"").replace(/\n?```$/,"").trim();
+  try { return JSON.parse(cleaned); }
   catch { return { error: "Failed to parse agent response", raw: text }; }
 }
 
