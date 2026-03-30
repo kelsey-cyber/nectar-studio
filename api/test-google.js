@@ -26,13 +26,15 @@ export default async function handler(req, res) {
   let apiResult = null, apiError = null;
   if (accessToken) {
     try {
-      const r = await fetch(`https://googleads.googleapis.com/v19/customers:listAccessibleCustomers`, {
-        method: "GET",
+      const r = await fetch(`https://googleads.googleapis.com/v19/customers/${customerId}/googleAds:search`, {
+        method: "POST",
         headers: {
           "Authorization": `Bearer ${accessToken}`,
           "developer-token": developerToken,
+          "Content-Type": "application/json",
           ...(loginCustomerId ? { "login-customer-id": loginCustomerId } : {})
-        }
+        },
+        body: JSON.stringify({ query: "SELECT customer.id FROM customer LIMIT 1" })
       });
       const text = await r.text();
       try { apiResult = JSON.parse(text); } catch { apiError = `HTML response (${r.status}): ${text.slice(0, 200)}`; }
