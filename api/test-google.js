@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   let apiResult = null, apiError = null;
   if (accessToken) {
     try {
-      const r = await fetch(`https://googleads.googleapis.com/v17/customers:listAccessibleCustomers`, {
+      const r = await fetch(`https://googleads.googleapis.com/v19/customers:listAccessibleCustomers`, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${accessToken}`,

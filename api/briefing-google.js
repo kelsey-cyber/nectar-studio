@@ -37,7 +37,7 @@ export default async function handler(req, res) {
       ...(loginCustomerId ? { "login-customer-id": loginCustomerId } : {})
     };
 
-    const gaqlBase = `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`;
+    const gaqlBase = `https://googleads.googleapis.com/v19/customers/${customerId}/googleAds:search`;
 
     async function query(gaql) {
       const r = await fetch(gaqlBase, {
