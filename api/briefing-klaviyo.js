@@ -15,9 +15,10 @@ export default async function handler(req, res) {
   const d7 = new Date(now - 7 * 864e5).toISOString();
 
   try {
-    // Fetch recent email campaigns
+    // Fetch recent email campaigns (last 30 days, by updated_at to catch sent campaigns)
+    const d30 = new Date(now - 30 * 864e5).toISOString();
     async function fetchCampaigns(channel) {
-      let campaigns = [], url = `https://a.klaviyo.com/api/campaigns/?filter=and(equals(send_channel,'${channel}'),greater-than(scheduled_at,'${d7}'))&sort=-scheduled_at`;
+      let campaigns = [], url = `https://a.klaviyo.com/api/campaigns/?filter=and(equals(send_channel,'${channel}'),greater-than(updated_at,'${d30}'))&sort=-updated_at`;
       while (url) {
         const r = await fetch(url, { headers });
         const d = await r.json();
