@@ -29,10 +29,12 @@ export default async function handler(req, res) {
     }
     const accessToken = tokenData.access_token;
 
+    const loginCustomerId = process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID;
     const headers = {
       "Authorization": `Bearer ${accessToken}`,
       "developer-token": developerToken,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...(loginCustomerId ? { "login-customer-id": loginCustomerId } : {})
     };
 
     const gaqlBase = `https://googleads.googleapis.com/v16/customers/${customerId}/googleAds:searchStream`;
