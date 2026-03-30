@@ -1685,6 +1685,181 @@ function Strategy({ playbook, savePlaybook }) {
   );
 }
 
+// ── WEEKLY BRIEFING ───────────────────────────────────────────────────────────
+const PRIORITY_COLOR = { red: "#F05380", yellow: "#F5A623", green: "#27AE60" };
+const PRIORITY_BG = { red: "#FEF0F4", yellow: "#FEF8EE", green: "#F0FAF4" };
+
+function PriorityDot({ priority }) {
+  return <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:PRIORITY_COLOR[priority]||"#ccc", marginRight:6, flexShrink:0 }} />;
+}
+
+function ActionItem({ action }) {
+  return (
+    <div style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"10px 0", borderBottom:"1px solid #F5EDE8" }}>
+      <PriorityDot priority={action.priority} />
+      <div style={{ flex:1 }}>
+        <div style={{ fontSize:13, fontWeight:600, color:"#2D2D2D", marginBottom:2 }}>{action.title}</div>
+        <div style={{ fontSize:12, color:"#666", lineHeight:1.5 }}>{action.detail}</div>
+      </div>
+      {action.metric && (
+        <span style={{ fontSize:11, fontWeight:700, color:PRIORITY_COLOR[action.priority]||"#999", whiteSpace:"nowrap", background:PRIORITY_BG[action.priority]||"#f5f5f5", padding:"2px 8px", borderRadius:10 }}>{action.metric}</span>
+      )}
+    </div>
+  );
+}
+
+function AgentCard({ agent, defaultOpen }) {
+  const [open, setOpen] = React.useState(defaultOpen || false);
+  if (!agent) return null;
+  const actions = agent.actions || [];
+  const redCount = actions.filter(a => a.priority === "red").length;
+  const yellowCount = actions.filter(a => a.priority === "yellow").length;
+  const greenCount = actions.filter(a => a.priority === "green").length;
+  return (
+    <div style={{ background:"#fff", borderRadius:12, border:"1px solid #EDE0D8", marginBottom:12, overflow:"hidden" }}>
+      <div onClick={() => setOpen(o => !o)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 16px", cursor:"pointer" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <span style={{ fontSize:14, fontWeight:700, color:"#2D2D2D" }}>{agent.agent}</span>
+          <span style={{ fontSize:11, color:"#999" }}>{agent.dataWindow}</span>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          {redCount > 0 && <span style={{ fontSize:11, fontWeight:700, color:PRIORITY_COLOR.red, background:PRIORITY_BG.red, padding:"2px 8px", borderRadius:10 }}>{redCount} RED</span>}
+          {yellowCount > 0 && <span style={{ fontSize:11, fontWeight:700, color:PRIORITY_COLOR.yellow, background:PRIORITY_BG.yellow, padding:"2px 8px", borderRadius:10 }}>{yellowCount} YELLOW</span>}
+          {greenCount > 0 && <span style={{ fontSize:11, fontWeight:700, color:PRIORITY_COLOR.green, background:PRIORITY_BG.green, padding:"2px 8px", borderRadius:10 }}>{greenCount} GREEN</span>}
+          <span style={{ fontSize:12, color:"#999", marginLeft:4 }}>{open ? "▲" : "▼"}</span>
+        </div>
+      </div>
+      {open && (
+        <div style={{ padding:"0 16px 14px" }}>
+          {actions.map((a, i) => <ActionItem key={i} action={a} />)}
+          {agent.summary && <p style={{ fontSize:12, color:"#666", marginTop:12, lineHeight:1.6, borderTop:"1px solid #F5EDE8", paddingTop:12 }}>{agent.summary}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ExecSummary({ data }) {
+  if (!data) return null;
+  const { weekOf, headline, metrics, topActions, ceoDecisionNeeded } = data;
+  return (
+    <div style={{ background:"#fff", borderRadius:12, border:"1px solid #EDE0D8", padding:20 }}>
+      <div style={{ fontSize:12, color:"#999", marginBottom:6 }}>{weekOf}</div>
+      <p style={{ fontSize:16, fontWeight:700, color:"#2D2D2D", lineHeight:1.5, marginBottom:16 }}>{headline}</p>
+      {metrics && (
+        <div style={{ display:"flex", gap:12, marginBottom:20, flexWrap:"wrap" }}>
+          {Object.entries(metrics).map(([k, v]) => (
+            <div key={k} style={{ flex:"1 1 120px", background:"#FCF4EE", borderRadius:10, padding:"10px 14px" }}>
+              <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>{k.replace(/([A-Z])/g, " $1").trim()}</div>
+              <div style={{ fontSize:16, fontWeight:700, color:"#2D2D2D" }}>{v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {(topActions || []).map((a, i) => (
+        <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"10px 0", borderBottom:"1px solid #F5EDE8" }}>
+          <PriorityDot priority={a.priority} />
+          <div>
+            <span style={{ fontSize:12, fontWeight:700, color:"#2D2D2D" }}>{a.area} — </span>
+            <span style={{ fontSize:12, color:"#555" }}>{a.action}</span>
+          </div>
+        </div>
+      ))}
+      {ceoDecisionNeeded && (
+        <div style={{ marginTop:16, padding:"12px 14px", background:"#FEF0F4", borderRadius:10, borderLeft:"3px solid #F05380" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"#F05380", marginBottom:4 }}>CEO DECISION NEEDED</div>
+          <div style={{ fontSize:12, color:"#2D2D2D" }}>{ceoDecisionNeeded}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WeeklyBriefing() {
+  const [view, setView] = React.useState(() => localStorage.getItem("briefingView") || "kelsey");
+  const [running, setRunning] = React.useState(false);
+  const [results, setResults] = React.useState(null);
+  const [error, setError] = React.useState(null);
+  const [lastRun, setLastRun] = React.useState(null);
+  const AGENT_NAMES = ["Shopify data", "Klaviyo data", "Meta data", "Google Ads data", "Running agents", "Synthesizing"];
+  const [agentIdx, setAgentIdx] = React.useState(0);
+
+  function switchView(v) {
+    setView(v);
+    localStorage.setItem("briefingView", v);
+  }
+
+  async function runBriefing() {
+    setRunning(true); setError(null); setAgentIdx(0);
+    const interval = setInterval(() => setAgentIdx(i => Math.min(i + 1, AGENT_NAMES.length - 1)), 5000);
+    try {
+      const r = await fetch("/api/briefing", { method:"POST", headers:{"Content-Type":"application/json"} });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      setResults(d);
+      setLastRun(new Date().toLocaleString("en-US", { weekday:"long", month:"long", day:"numeric", year:"numeric", hour:"numeric", minute:"2-digit" }));
+    } catch(e) {
+      setError(e.message);
+    } finally {
+      clearInterval(interval);
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div style={{ maxWidth:680, margin:"0 auto", padding:"24px 16px" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20, flexWrap:"wrap", gap:10 }}>
+        <div>
+          <h2 style={{ fontSize:18, fontWeight:700, color:"#2D2D2D", margin:0 }}>Weekly Briefing</h2>
+          {lastRun && <div style={{ fontSize:11, color:"#999", marginTop:4 }}>Last run: {lastRun}</div>}
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ display:"flex", background:"#F5EDE8", borderRadius:20, padding:2 }}>
+            {["kelsey","tom"].map(v => (
+              <button key={v} onClick={() => switchView(v)} style={{ padding:"6px 14px", borderRadius:18, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, background:view===v?"#fff":"transparent", color:view===v?"#2D2D2D":"#999", boxShadow:view===v?"0 1px 3px rgba(0,0,0,0.1)":"none", transition:"all 0.2s" }}>
+                {v === "kelsey" ? "Kelsey" : "Tom"}
+              </button>
+            ))}
+          </div>
+          <button onClick={runBriefing} disabled={running} style={{ padding:"8px 18px", background: running?"#ddd":"#F05380", color:"#fff", border:"none", borderRadius:20, fontSize:13, fontWeight:700, cursor:running?"not-allowed":"pointer", display:"flex", alignItems:"center", gap:8 }}>
+            {running ? (
+              <><span style={{ width:10, height:10, border:"2px solid #fff", borderTopColor:"transparent", borderRadius:"50%", display:"inline-block", animation:"spin 0.8s linear infinite" }} />{AGENT_NAMES[agentIdx]}...</>
+            ) : "Run Briefing"}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ background:"#FEF0F4", border:"1px solid #F05380", borderRadius:10, padding:"12px 16px", marginBottom:16, fontSize:13, color:"#F05380" }}>
+          Error: {error}
+        </div>
+      )}
+
+      {!results && !running && (
+        <div style={{ textAlign:"center", padding:"60px 20px", color:"#999" }}>
+          <div style={{ fontSize:32, marginBottom:12 }}>◎</div>
+          <div style={{ fontSize:14, fontWeight:600, marginBottom:6 }}>No briefing yet</div>
+          <div style={{ fontSize:12 }}>Click Run Briefing to pull live data from all platforms and generate your weekly intelligence report.</div>
+        </div>
+      )}
+
+      {results && view === "kelsey" && (
+        <div>
+          {Object.values(results.agents || {}).map((agent, i) => (
+            <AgentCard key={i} agent={agent} defaultOpen={i === 0} />
+          ))}
+        </div>
+      )}
+
+      {results && view === "tom" && (
+        <ExecSummary data={results.execSummary} />
+      )}
+
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
+
 // ── APP SHELL ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [tab,setTab]=useState("social");
@@ -1704,6 +1879,7 @@ export default function App() {
     {id:"visuals",label:"Visuals",icon:"✿",sub:"AI image gen"},
     {id:"analytics",label:"Analytics",icon:"▲",sub:"Live performance"},
     {id:"strategy",label:"Strategy",icon:"◆",sub:"Playbook + learnings"},
+    {id:"briefing",label:"Briefing",icon:"◎",sub:"Weekly intelligence"},
   ];
 
   const active=tabs.find(t=>t.id===tab);
@@ -1716,6 +1892,7 @@ export default function App() {
     visuals:   <Visuals ctx={ctx} />,
     analytics: <Analytics playbook={playbook} savePlaybook={savePlaybook}/>,
     strategy:  <Strategy playbook={playbook} savePlaybook={savePlaybook}/>,
+    briefing:  <WeeklyBriefing />,
   }[tab];
 
   return (
