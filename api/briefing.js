@@ -1,5 +1,5 @@
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = "claude-sonnet-4-6";
+const MODEL = "claude-haiku-4-5-20251001";
 
 async function callAgent(systemPrompt, data) {
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
@@ -12,7 +12,7 @@ async function callAgent(systemPrompt, data) {
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 4000,
+      max_tokens: 1000,
       system: systemPrompt,
       messages: [{
         role: "user",
@@ -197,15 +197,15 @@ export default async function handler(req, res) {
     const googleSlim = googleData.unavailable ? { unavailable: true, reason: googleData.reason } : { summary: googleData.summary, highCpa: googleData.highCpa, negativeKeywordAlert: googleData.negativeKeywordAlert };
 
     const emailCRM = await callAgent(PROMPTS.emailCRM, { klaviyo: klaviyoSlim });
-    await delay(1000);
+    await delay(300);
     const paidMedia = await callAgent(PROMPTS.paidMedia, { meta: metaSlim, google: googleSlim });
-    await delay(1000);
+    await delay(300);
     const merch = await callAgent(PROMPTS.merchandising, { shopify: shopifySlim });
-    await delay(1000);
+    await delay(300);
     const retention = await callAgent(PROMPTS.retention, { shopify: shopifySlim, klaviyo: klaviyoSlim });
-    await delay(1000);
+    await delay(300);
     const finance = await callAgent(PROMPTS.finance, { shopify: shopifySlim, meta: metaSlim, google: googleSlim });
-    await delay(1000);
+    await delay(300);
 
     // 3. Run synthesis agent with slim summaries only
     const synthData = { emailCRM, paidMedia, merch, retention, finance };
