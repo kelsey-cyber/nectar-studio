@@ -18,7 +18,7 @@ export default async function handler(req, res) {
       body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: "refresh_token" })
     });
     const tokenData = await tokenRes.json();
-    if (tokenData.access_token) accessToken = "OK";
+    if (tokenData.access_token) accessToken = tokenData.access_token;
     else tokenError = tokenData;
   } catch(e) { tokenError = e.message; }
 
@@ -29,17 +29,17 @@ export default async function handler(req, res) {
       const r = await fetch(`https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:searchStream`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${accessToken === "OK" ? (await (await fetch("https://oauth2.googleapis.com/token", { method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"}, body: new URLSearchParams({client_id:clientId,client_secret:clientSecret,refresh_token:refreshToken,grant_type:"refresh_token"})})).json()).access_token : ""}`,
+          "Authorization": `Bearer ${accessToken}`,
           "developer-token": developerToken,
           "Content-Type": "application/json",
           ...(loginCustomerId ? { "login-customer-id": loginCustomerId } : {})
         },
         body: JSON.stringify({ query: "SELECT customer.id FROM customer LIMIT 1" })
       });
-      const d = await r.json();
-      apiResult = d;
+      const text = await r.text();
+      try { apiResult = JSON.parse(text); } catch { apiError = `HTML response (${r.status}): ${text.slice(0, 200)}`; }
     } catch(e) { apiError = e.message; }
   }
 
-  return res.status(200).json({ vars, tokenStatus: accessToken || tokenError, apiResult, apiError });
+  return res.status(200).json({ vars, tokenStatus: accessToken ? "OK" : tokenError, apiResult, apiError });
 }
