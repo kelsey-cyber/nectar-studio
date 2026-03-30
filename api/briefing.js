@@ -187,17 +187,29 @@ export default async function handler(req, res) {
       googleRes.json()
     ]);
 
-    // 2. Run all five agents in parallel
-    const [emailCRM, paidMedia, merch, retention, finance] = await Promise.all([
-      callAgent(PROMPTS.emailCRM, { klaviyo: klaviyoData }),
-      callAgent(PROMPTS.paidMedia, { meta: metaData, google: googleData }),
-      callAgent(PROMPTS.merchandising, { shopify: shopifyData }),
-      callAgent(PROMPTS.retention, { shopify: shopifyData, klaviyo: klaviyoData }),
-      callAgent(PROMPTS.finance, { shopify: shopifyData, klaviyo: klaviyoData, meta: metaData, google: googleData })
-    ]);
+    // 2. Run agents sequentially to avoid rate limits — 1s gap between each
+    const delay = ms => new Promise(r => setTimeout(r, ms));
 
-    // 3. Run synthesis agent
-    const execSummary = await callAgent(PROMPTS.execSynthesis, { emailCRM, paidMedia, merch, retention, finance });
+    // Slim down data payloads to reduce token usage
+    const shopifySlim = { last7Days: shopifyData.last7Days, lowInventory: (shopifyData.lowInventory||[]).slice(0,10) };
+    const klaviyoSlim = { emailCampaigns: (klaviyoData.emailCampaigns||[]).slice(0,6), smsCampaigns: (klaviyoData.smsCampaigns||[]).slice(0,4), flows: klaviyoData.flows, emailStats: (klaviyoData.emailStats||[]).slice(0,6) };
+    const metaSlim = { summary: metaData.summary, top3Roas: metaData.top3Roas, bottom3Cpa: metaData.bottom3Cpa, highFrequency: metaData.highFrequency };
+    const googleSlim = googleData.unavailable ? { unavailable: true } : { summary: googleData.summary, highCpa: googleData.highCpa, negativeKeywordAlert: googleData.negativeKeywordAlert };
+
+    const emailCRM = await callAgent(PROMPTS.emailCRM, { klaviyo: klaviyoSlim });
+    await delay(1000);
+    const paidMedia = await callAgent(PROMPTS.paidMedia, { meta: metaSlim, google: googleSlim });
+    await delay(1000);
+    const merch = await callAgent(PROMPTS.merchandising, { shopify: shopifySlim });
+    await delay(1000);
+    const retention = await callAgent(PROMPTS.retention, { shopify: shopifySlim, klaviyo: klaviyoSlim });
+    await delay(1000);
+    const finance = await callAgent(PROMPTS.finance, { shopify: shopifySlim, meta: metaSlim, google: googleSlim });
+    await delay(1000);
+
+    // 3. Run synthesis agent with slim summaries only
+    const synthData = { emailCRM, paidMedia, merch, retention, finance };
+    const execSummary = await callAgent(PROMPTS.execSynthesis, synthData);
 
     return res.status(200).json({
       agents: { emailCRM, paidMedia, merch, retention, finance },
