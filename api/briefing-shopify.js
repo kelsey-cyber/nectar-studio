@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   try {
     // Fetch last 7 days orders
     async function fetchOrders(since) {
-      let orders = [], url = `${base}/orders.json?status=any&created_at_min=${since}&limit=250&fields=id,total_price,financial_status,customer,line_items,refunds,created_at`;
+      let orders = [], url = `${base}/orders.json?status=any&created_at_min=${since}&limit=250&fields=id,total_price,financial_status,customer,line_items,refunds,created_at&customer_fields=id,orders_count,email`;
       while (url) {
         const r = await fetch(url, { headers });
         const d = await r.json();
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
       const revenue = orders.reduce((s, o) => s + parseFloat(o.total_price || 0), 0);
       const count = orders.length;
       const aov = count > 0 ? revenue / count : 0;
-      const newCustomers = orders.filter(o => o.customer?.orders_count === 1).length;
+      const newCustomers = orders.filter(o => !o.customer || parseInt(o.customer?.orders_count || 0) <= 1).length;
       const returningCustomers = count - newCustomers;
       const refunds = orders.filter(o => o.financial_status === "refunded" || o.financial_status === "partially_refunded").length;
       const refundRate = count > 0 ? (refunds / count * 100).toFixed(1) : 0;

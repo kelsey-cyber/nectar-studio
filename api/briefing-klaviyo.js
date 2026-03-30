@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   try {
     // Fetch recent email campaigns
     async function fetchCampaigns(channel) {
-      let campaigns = [], url = `https://a.klaviyo.com/api/campaigns/?filter=and(equals(messages.channel,'${channel}'),greater-than(scheduled_at,'${d7}'))&sort=-scheduled_at`;
+      let campaigns = [], url = `https://a.klaviyo.com/api/campaigns/?filter=and(equals(send_channel,'${channel}'),greater-than(scheduled_at,'${d7}'))&sort=-scheduled_at`;
       while (url) {
         const r = await fetch(url, { headers });
         const d = await r.json();
