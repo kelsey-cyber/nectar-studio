@@ -1,8 +1,9 @@
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const apiKey = process.env.KLAVIYO_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "Klaviyo API key not configured" });
+  const body = req.body || {};
+  const apiKey = body.klaviyoKey || process.env.KLAVIYO_API_KEY;
+  if (!apiKey) return res.status(200).json({ unavailable: true, reason: "Klaviyo API key not configured" });
 
   const headers = {
     "Authorization": `Klaviyo-API-Key ${apiKey}`,

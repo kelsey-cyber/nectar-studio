@@ -1,9 +1,10 @@
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const token = process.env.META_ACCESS_TOKEN;
-  const accountId = process.env.META_AD_ACCOUNT_ID;
-  if (!token || !accountId) return res.status(500).json({ error: "Meta credentials not configured" });
+  const body = req.body || {};
+  const token = body.metaToken || process.env.META_ACCESS_TOKEN;
+  const accountId = body.metaAccountId || process.env.META_AD_ACCOUNT_ID;
+  if (!token || !accountId) return res.status(200).json({ unavailable: true, reason: "Meta credentials not configured" });
 
   const now = new Date();
   const d7 = new Date(now - 7 * 864e5);

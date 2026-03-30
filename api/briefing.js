@@ -166,13 +166,14 @@ export default async function handler(req, res) {
   if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: "Anthropic API key not configured" });
 
   const baseUrl = `https://${req.headers.host}`;
+  const { metaToken, metaAccountId, klaviyoKey } = req.body || {};
 
   try {
     // 1. Fetch all data in parallel
     const [shopifyRes, klaviyoRes, metaRes, googleRes] = await Promise.all([
       fetch(`${baseUrl}/api/briefing-shopify`, { method: "POST", headers: { "Content-Type": "application/json" } }),
-      fetch(`${baseUrl}/api/briefing-klaviyo`, { method: "POST", headers: { "Content-Type": "application/json" } }),
-      fetch(`${baseUrl}/api/briefing-meta`, { method: "POST", headers: { "Content-Type": "application/json" } }),
+      fetch(`${baseUrl}/api/briefing-klaviyo`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ klaviyoKey }) }),
+      fetch(`${baseUrl}/api/briefing-meta`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ metaToken, metaAccountId }) }),
       fetch(`${baseUrl}/api/briefing-google`, { method: "POST", headers: { "Content-Type": "application/json" } })
     ]);
 

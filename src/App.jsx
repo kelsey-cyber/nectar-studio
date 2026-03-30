@@ -1793,7 +1793,12 @@ function WeeklyBriefing() {
     setRunning(true); setError(null); setAgentIdx(0);
     const interval = setInterval(() => setAgentIdx(i => Math.min(i + 1, AGENT_NAMES.length - 1)), 5000);
     try {
-      const r = await fetch("/api/briefing", { method:"POST", headers:{"Content-Type":"application/json"} });
+      const creds = {
+        metaToken: localStorage.getItem("anaMetaToken") || "",
+        metaAccountId: localStorage.getItem("anaMetaAccId") || "",
+        klaviyoKey: localStorage.getItem("anaKlaviyoKey") || ""
+      };
+      const r = await fetch("/api/briefing", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(creds) });
       const d = await r.json();
       if (d.error) throw new Error(d.error);
       setResults(d);
