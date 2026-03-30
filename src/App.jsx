@@ -1741,6 +1741,14 @@ function AgentCard({ agent, defaultOpen }) {
 
 function ExecSummary({ data }) {
   if (!data) return null;
+  if (data.error || (!data.headline && !data.weekOf && !data.topActions)) {
+    return (
+      <div style={{ background:"#fff", borderRadius:12, border:"1px solid #EDE0D8", padding:20 }}>
+        <div style={{ fontSize:13, color:"#999", marginBottom:8 }}>Executive summary could not be generated this run.</div>
+        <pre style={{ fontSize:11, color:"#666", whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{JSON.stringify(data, null, 2)}</pre>
+      </div>
+    );
+  }
   const { weekOf, headline, metrics, topActions, ceoDecisionNeeded } = data;
   return (
     <div style={{ background:"#fff", borderRadius:12, border:"1px solid #EDE0D8", padding:20 }}>
