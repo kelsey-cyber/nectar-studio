@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     });
     const tokenData = await tokenRes.json();
     if (!tokenData.access_token) {
-      return res.status(500).json({ error: "Failed to get Google Ads access token", details: tokenData });
+      return res.status(200).json({ unavailable: true, reason: "OAuth token exchange failed", details: tokenData });
     }
     const accessToken = tokenData.access_token;
 
@@ -44,7 +44,10 @@ export default async function handler(req, res) {
         body: JSON.stringify({ query: gaql })
       });
       const d = await r.json();
-      if (!Array.isArray(d)) return d[0]?.results || [];
+      if (!Array.isArray(d)) {
+        if (d.error || d[0]?.error) throw new Error(JSON.stringify(d.error || d[0]?.error));
+        return d[0]?.results || [];
+      }
       return d.flatMap(chunk => chunk.results || []);
     }
 
@@ -137,6 +140,6 @@ export default async function handler(req, res) {
       negativeKeywordAlert: "semrush not confirmed as negative keyword — verify in Google Ads"
     });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(200).json({ unavailable: true, reason: err.message });
   }
 }
