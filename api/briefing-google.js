@@ -67,10 +67,9 @@ export default async function handler(req, res) {
       WHERE segments.date BETWEEN '${since}' AND '${until}'
     `);
 
-    const summary = summaryResults[0]?.metrics || {};
-    const spend = (parseInt(summary.cost_micros || 0) / 1e6);
-    const convValue = parseFloat(summary.conversions_value || 0);
-    const conversions = parseFloat(summary.conversions || 0);
+    const spend = summaryResults.reduce((s, r) => s + (parseInt(r.metrics?.cost_micros || 0) / 1e6), 0);
+    const convValue = summaryResults.reduce((s, r) => s + parseFloat(r.metrics?.conversions_value || 0), 0);
+    const conversions = summaryResults.reduce((s, r) => s + parseFloat(r.metrics?.conversions || 0), 0);
     const roas = spend > 0 ? (convValue / spend).toFixed(2) : 0;
     const cpa = conversions > 0 ? (spend / conversions).toFixed(2) : 0;
 
@@ -87,8 +86,8 @@ export default async function handler(req, res) {
         metrics.ctr
       FROM campaign
       WHERE segments.date BETWEEN '${since}' AND '${until}'
-        AND campaign.status = 'ENABLED'
-      ORDER BY metrics.conversions_value DESC
+        AND metrics.cost_micros > 0
+      ORDER BY metrics.cost_micros DESC
       LIMIT 10
     `);
 
