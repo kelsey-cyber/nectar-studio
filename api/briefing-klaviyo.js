@@ -15,12 +15,14 @@ export default async function handler(req, res) {
   const d7 = new Date(now - 7 * 864e5).toISOString();
 
   try {
-    // Fetch recent sent campaigns (no date filter — sort by scheduled_at desc, take latest 20)
+    // Fetch recent sent campaigns
+    let campaignDebug = null;
     async function fetchCampaigns(channel) {
       let campaigns = [], url = `https://a.klaviyo.com/api/campaigns/?filter=equals(send_channel,'${channel}')&sort=-scheduled_at`;
       while (url) {
         const r = await fetch(url, { headers });
         const d = await r.json();
+        if (!campaignDebug) campaignDebug = { status: r.status, keys: Object.keys(d), errors: d.errors, dataCount: d.data?.length };
         campaigns = campaigns.concat(d.data || []);
         url = d.links?.next || null;
         if (campaigns.length >= 20) break;
@@ -91,6 +93,7 @@ export default async function handler(req, res) {
     const emailStats = await fetchCampaignStats(emailIds);
 
     return res.status(200).json({
+      campaignDebug,
       emailCampaigns: emailCampaigns.slice(0, 10).map(c => ({
         id: c.id,
         name: c.attributes?.name,
