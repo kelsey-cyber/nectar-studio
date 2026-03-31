@@ -33,13 +33,12 @@ export default async function handler(req, res) {
     } catch(e) { userInfo = { error: e.message }; }
 
     try {
-      const r = await fetch(`https://googleads.googleapis.com/v19/customers/${customerId}/googleAds:search`, {
+      const r = await fetch(`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${accessToken}`,
           "developer-token": developerToken,
-          "Content-Type": "application/json",
-          ...(loginCustomerId ? { "login-customer-id": loginCustomerId } : {})
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ query: "SELECT customer.id FROM customer LIMIT 1" })
       });
