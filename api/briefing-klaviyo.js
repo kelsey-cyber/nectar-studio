@@ -7,7 +7,7 @@ export default async function handler(req, res) {
 
   const headers = {
     "Authorization": `Klaviyo-API-Key ${apiKey}`,
-    "revision": "2024-02-15",
+    "revision": "2024-10-15",
     "Content-Type": "application/json"
   };
 
