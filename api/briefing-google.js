@@ -33,11 +33,10 @@ export default async function handler(req, res) {
     const headers = {
       "Authorization": `Bearer ${accessToken}`,
       "developer-token": developerToken,
-      "Content-Type": "application/json",
-      ...(loginCustomerId ? { "login-customer-id": loginCustomerId } : {})
+      "Content-Type": "application/json"
     };
 
-    const gaqlBase = `https://googleads.googleapis.com/v19/customers/${customerId}/googleAds:search`;
+    const gaqlBase = `https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:search`;
 
     async function query(gaql) {
       const r = await fetch(gaqlBase, {
