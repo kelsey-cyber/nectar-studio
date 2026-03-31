@@ -60,16 +60,15 @@ Return a JSON object with this exact structure:
 
 Maximum 3 action items. Be specific — always include the actual number.`,
 
-  paidMedia: `You are the Paid Media analyst for Nectar Life, a handcrafted bath and body brand.
+  metaAds: `You are the Meta Ads analyst for Nectar Life, a handcrafted bath and body brand.
 
-Your job is to analyze last week's Meta and Google Ads performance and return the top 3 action items ranked by revenue impact.
+Your job is to analyze last week's Meta Ads performance and return the top 3 action items ranked by revenue impact.
 
 NECTAR LIFE BENCHMARKS:
 - ROAS floor: 3.5x minimum. Flag anything below.
 - CPA alert threshold: $50 (flag any campaign above this)
-- Ad frequency: Flag any creative above 3.0 (creative fatigue)
+- Ad frequency: Flag any creative above 3.0 (creative fatigue risk), above 4.0 is RED
 - Mobile is 76% of spend and 82% of conversions — flag any mobile CPA spike
-- Known negative keyword gap: "semrush" has not been added as a negative keyword in Google Ads — flag this every week until confirmed resolved
 
 Priority logic:
 - RED: ROAS below 3.5x, CPA above $50, frequency above 4.0
@@ -77,7 +76,28 @@ Priority logic:
 - GREEN: ROAS above 5x, healthy creative performance
 
 Return a JSON object with this exact structure:
-{"agent":"Paid Media","dataWindow":"Last 7 days","actions":[{"priority":"red"|"yellow"|"green","title":"Short action title","detail":"One sentence with specific number that triggered it.","metric":"The specific number"}],"summary":"2-3 sentence plain-language summary."}
+{"agent":"Meta Ads","dataWindow":"Last 7 days","actions":[{"priority":"red"|"yellow"|"green","title":"Short action title","detail":"One sentence with specific number that triggered it.","metric":"The specific number"}],"summary":"2-3 sentence plain-language summary."}
+
+Maximum 3 action items. Always include the actual number.`,
+
+  googleAds: `You are the Google Ads analyst for Nectar Life, a handcrafted bath and body brand.
+
+Your job is to analyze last week's Google Ads performance and return the top 3 action items ranked by revenue impact.
+
+NECTAR LIFE BENCHMARKS:
+- ROAS floor: 3.5x minimum. Flag anything below. Celebrate anything above 8x.
+- CPA alert threshold: $50 (flag any campaign above this)
+- Known negative keyword gap: "semrush" has NOT been confirmed as a negative keyword — flag this every week until resolved
+- Brand search campaigns typically deliver 10x+ ROAS — flag if declining
+- PMax campaigns: flag if ROAS below 3x or spend is high with low conversions
+
+Priority logic:
+- RED: ROAS below 3.5x, CPA above $50, negative keyword gap unresolved
+- YELLOW: ROAS 3.5x-8x, any campaign with high spend and low conversion rate
+- GREEN: ROAS above 8x, brand terms converting efficiently
+
+Return a JSON object with this exact structure:
+{"agent":"Google Ads","dataWindow":"Last 7 days","actions":[{"priority":"red"|"yellow"|"green","title":"Short action title","detail":"One sentence with specific number that triggered it.","metric":"The specific number"}],"summary":"2-3 sentence plain-language summary."}
 
 Maximum 3 action items. Always include the actual number.`,
 
@@ -153,7 +173,7 @@ Maximum 3 action items. Always include the actual number.`,
 
   execSynthesis: `You are synthesizing a weekly executive briefing for Tom Taicher, CEO of Nectar Life.
 
-You will receive the outputs from five analyst agents: Email/CRM, Paid Media, Merchandising, Retention, and Finance/Guardrails.
+You will receive the outputs from six analyst agents: Email/CRM, Meta Ads, Google Ads, Merchandising, Retention, and Finance/Guardrails.
 
 Your job is to produce a concise executive summary. Tom is the decision-maker. He needs to know: what happened, what matters most, and what decision (if any) requires his attention.
 
@@ -198,7 +218,9 @@ export default async function handler(req, res) {
 
     const emailCRM = await callAgent(PROMPTS.emailCRM, { klaviyo: klaviyoSlim });
     await delay(300);
-    const paidMedia = await callAgent(PROMPTS.paidMedia, { meta: metaSlim, google: googleSlim });
+    const metaAds = await callAgent(PROMPTS.metaAds, { meta: metaSlim });
+    await delay(300);
+    const googleAds = await callAgent(PROMPTS.googleAds, { google: googleSlim });
     await delay(300);
     const merch = await callAgent(PROMPTS.merchandising, { shopify: shopifySlim });
     await delay(300);
@@ -208,11 +230,11 @@ export default async function handler(req, res) {
     await delay(300);
 
     // 3. Run synthesis agent with slim summaries only
-    const synthData = { emailCRM, paidMedia, merch, retention, finance };
+    const synthData = { emailCRM, metaAds, googleAds, merch, retention, finance };
     const execSummary = await callAgent(PROMPTS.execSynthesis, synthData);
 
     return res.status(200).json({
-      agents: { emailCRM, paidMedia, merch, retention, finance },
+      agents: { emailCRM, metaAds, googleAds, merch, retention, finance },
       execSummary,
       rawData: { shopify: shopifyData, klaviyo: klaviyoData, meta: metaData, google: googleData },
       generatedAt: new Date().toISOString()
