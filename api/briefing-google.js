@@ -67,8 +67,8 @@ export default async function handler(req, res) {
       WHERE segments.date BETWEEN '${since}' AND '${until}'
     `);
 
-    const spend = summaryResults.reduce((s, r) => s + (parseInt(r.metrics?.cost_micros || 0) / 1e6), 0);
-    const convValue = summaryResults.reduce((s, r) => s + parseFloat(r.metrics?.conversions_value || 0), 0);
+    const spend = summaryResults.reduce((s, r) => s + (Number(r.metrics?.costMicros || 0) / 1e6), 0);
+    const convValue = summaryResults.reduce((s, r) => s + parseFloat(r.metrics?.conversionsValue || 0), 0);
     const conversions = summaryResults.reduce((s, r) => s + parseFloat(r.metrics?.conversions || 0), 0);
     const roas = spend > 0 ? (convValue / spend).toFixed(2) : 0;
     const cpa = conversions > 0 ? (spend / conversions).toFixed(2) : 0;
@@ -92,14 +92,12 @@ export default async function handler(req, res) {
     `);
 
     const campaigns = campaignResults.map(r => {
-      const rawCost = r.metrics?.cost_micros;
-      const cSpend = Number(rawCost || 0) / 1e6;
+      const cSpend = Number(r.metrics?.costMicros || 0) / 1e6;
       const cConv = parseFloat(r.metrics?.conversions || 0);
-      const cConvValue = parseFloat(r.metrics?.conversions_value || 0);
+      const cConvValue = parseFloat(r.metrics?.conversionsValue || 0);
       return {
         id: r.campaign?.id,
         name: r.campaign?.name,
-        rawCostMicros: rawCost,
         spend: cSpend.toFixed(2),
         conversions: cConv,
         conversionValue: cConvValue.toFixed(2),
@@ -125,8 +123,8 @@ export default async function handler(req, res) {
     `);
 
     const topSearchTerms = searchTermResults.map(r => ({
-      term: r.search_term_view?.search_term,
-      spend: (parseInt(r.metrics?.cost_micros || 0) / 1e6).toFixed(2),
+      term: r.searchTermView?.searchTerm,
+      spend: (Number(r.metrics?.costMicros || 0) / 1e6).toFixed(2),
       clicks: r.metrics?.clicks,
       conversions: r.metrics?.conversions
     }));
