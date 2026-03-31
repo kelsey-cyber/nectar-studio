@@ -66,8 +66,9 @@ export default async function handler(req, res) {
                 attributes: {
                   timeframe: { key: "last_7_days" },
                   conversion_metric_id: "QNJkRq",
-                  campaign_ids: [id],
-                  statistics: ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients", "revenue_per_recipient"]
+                  filter: `equals(campaign_id,'${id}')`,
+                  statistics: ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients", "unsubscribe_rate"],
+                  value_statistics: ["revenue_per_recipient"]
                 }
               }
             })
