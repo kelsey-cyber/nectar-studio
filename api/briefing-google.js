@@ -130,6 +130,7 @@ export default async function handler(req, res) {
     }));
 
     return res.status(200).json({
+      debug_firstCampaignRaw: campaignResults[0] || null,
       summary: { spend: spend.toFixed(2), roas, cpa, conversions, conversionValue: convValue.toFixed(2) },
       campaigns,
       highCpa,
