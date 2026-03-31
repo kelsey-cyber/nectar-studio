@@ -194,7 +194,7 @@ export default async function handler(req, res) {
     const shopifySlim = { last7Days: shopifyData.last7Days, lowInventory: (shopifyData.lowInventory||[]).slice(0,10) };
     const klaviyoSlim = { emailCampaigns: (klaviyoData.emailCampaigns||[]).slice(0,6), smsCampaigns: (klaviyoData.smsCampaigns||[]).slice(0,4), flows: klaviyoData.flows, emailStats: (klaviyoData.emailStats||[]).slice(0,6) };
     const metaSlim = { summary: metaData.summary, top3Roas: metaData.top3Roas, bottom3Cpa: metaData.bottom3Cpa, highFrequency: metaData.highFrequency };
-    const googleSlim = googleData.unavailable ? { unavailable: true, reason: googleData.reason } : { summary: googleData.summary, highCpa: googleData.highCpa, negativeKeywordAlert: googleData.negativeKeywordAlert };
+    const googleSlim = googleData.unavailable ? { unavailable: true, reason: googleData.reason } : { summary: googleData.summary, campaigns: (googleData.campaigns||[]).slice(0,6), highCpa: googleData.highCpa, topSearchTerms: (googleData.topSearchTerms||[]).slice(0,5), negativeKeywordAlert: googleData.negativeKeywordAlert };
 
     const emailCRM = await callAgent(PROMPTS.emailCRM, { klaviyo: klaviyoSlim });
     await delay(300);
