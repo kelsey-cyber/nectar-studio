@@ -92,12 +92,14 @@ export default async function handler(req, res) {
     `);
 
     const campaigns = campaignResults.map(r => {
-      const cSpend = parseInt(r.metrics?.cost_micros || 0) / 1e6;
+      const rawCost = r.metrics?.cost_micros;
+      const cSpend = Number(rawCost || 0) / 1e6;
       const cConv = parseFloat(r.metrics?.conversions || 0);
       const cConvValue = parseFloat(r.metrics?.conversions_value || 0);
       return {
         id: r.campaign?.id,
         name: r.campaign?.name,
+        rawCostMicros: rawCost,
         spend: cSpend.toFixed(2),
         conversions: cConv,
         conversionValue: cConvValue.toFixed(2),
