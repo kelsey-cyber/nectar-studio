@@ -55,7 +55,7 @@ export default async function handler(req, res) {
       if (!campaignIds.length) return [];
       // Get stats for each campaign
       const stats = [];
-      for (const id of campaignIds.slice(0, 8)) {
+      for (const id of campaignIds.slice(0, 5)) {
         try {
           const r = await fetch(`https://a.klaviyo.com/api/campaign-values-reports/`, {
             method: "POST",
@@ -65,8 +65,9 @@ export default async function handler(req, res) {
                 type: "campaign-values-report",
                 attributes: {
                   timeframe: { key: "last_7_days" },
+                  conversion_metric_id: "QNJkRq",
                   campaign_ids: [id],
-                  statistics: ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients"]
+                  statistics: ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients", "revenue_per_recipient"]
                 }
               }
             })
@@ -76,7 +77,7 @@ export default async function handler(req, res) {
           if (results) stats.push({ campaignId: id, ...results.statistics });
           else if (d.errors) stats.push({ campaignId: id, error: d.errors[0]?.detail });
         } catch(e) { stats.push({ campaignId: id, error: e.message }); }
-        await new Promise(resolve => setTimeout(resolve, 500)); // rate limit
+        await new Promise(resolve => setTimeout(resolve, 2000)); // rate limit
       }
       return stats;
     }
