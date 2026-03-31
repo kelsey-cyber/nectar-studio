@@ -50,37 +50,36 @@ export default async function handler(req, res) {
       return (d.data || []).slice(0, 5).map(l => ({ name: l.attributes?.name, profiles: l.attributes?.profile_count }));
     }
 
-    // Fetch campaign stats via metrics
+    // Fetch campaign stats — single request for all campaigns
     async function fetchCampaignStats(campaignIds) {
       if (!campaignIds.length) return [];
-      // Get stats for each campaign
-      const stats = [];
-      for (const id of campaignIds.slice(0, 5)) {
-        try {
-          const r = await fetch(`https://a.klaviyo.com/api/campaign-values-reports/`, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              data: {
-                type: "campaign-values-report",
-                attributes: {
-                  timeframe: { key: "last_7_days" },
-                  conversion_metric_id: "QNJkRq",
-                  filter: `equals(campaign_id,'${id}')`,
-                  statistics: ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients", "unsubscribe_rate"],
-                  value_statistics: ["revenue_per_recipient"]
-                }
+      const ids = campaignIds.slice(0, 10);
+      try {
+        const filterStr = ids.length === 1
+          ? `equals(campaign_id,'${ids[0]}')`
+          : `any(campaign_id,["${ids.join('","')}"])`;
+        const r = await fetch(`https://a.klaviyo.com/api/campaign-values-reports/`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            data: {
+              type: "campaign-values-report",
+              attributes: {
+                timeframe: { key: "last_7_days" },
+                conversion_metric_id: "QNJkRq",
+                filter: filterStr,
+                statistics: ["opens", "open_rate", "clicks", "click_rate", "delivered", "recipients", "unsubscribe_rate"]
               }
-            })
-          });
-          const d = await r.json();
-          const results = d.data?.attributes?.results?.[0];
-          if (results) stats.push({ campaignId: id, ...results.statistics });
-          else if (d.errors) stats.push({ campaignId: id, error: d.errors[0]?.detail });
-        } catch(e) { stats.push({ campaignId: id, error: e.message }); }
-        await new Promise(resolve => setTimeout(resolve, 2000)); // rate limit
-      }
-      return stats;
+            }
+          })
+        });
+        const d = await r.json();
+        if (d.errors) return [{ error: d.errors[0]?.detail }];
+        return (d.data?.attributes?.results || []).map(r => ({
+          campaignId: r.groupings?.campaign_id,
+          ...r.statistics
+        }));
+      } catch(e) { return [{ error: e.message }]; }
     }
 
     const [emailCampaigns, smsCampaigns, flows, listHealth] = await Promise.all([
