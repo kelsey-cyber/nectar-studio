@@ -38,7 +38,7 @@ export default async function handler(req, res) {
           const d = await r.json();
           results.push({ id, name: d.data?.attributes?.name, status: d.data?.attributes?.status });
         } catch { results.push({ id, error: true }); }
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 400));
       }
       return results;
     }
