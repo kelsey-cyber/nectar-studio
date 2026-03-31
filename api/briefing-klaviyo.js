@@ -57,7 +57,7 @@ export default async function handler(req, res) {
       try {
         const filterStr = ids.length === 1
           ? `equals(campaign_id,'${ids[0]}')`
-          : `any(campaign_id,["${ids.join('","')}"])`;
+          : `contains-any(campaign_id,["${ids.join('","')}"])`;
         const r = await fetch(`https://a.klaviyo.com/api/campaign-values-reports/`, {
           method: "POST",
           headers,
