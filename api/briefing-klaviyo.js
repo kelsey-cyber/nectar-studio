@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   try {
     // Fetch recent sent campaigns (no date filter — sort by scheduled_at desc, take latest 20)
     async function fetchCampaigns(channel) {
-      let campaigns = [], url = `https://a.klaviyo.com/api/campaigns/?filter=and(equals(send_channel,'${channel}'),equals(status,'Sent'))&sort=-scheduled_at`;
+      let campaigns = [], url = `https://a.klaviyo.com/api/campaigns/?filter=equals(send_channel,'${channel}')&sort=-scheduled_at`;
       while (url) {
         const r = await fetch(url, { headers });
         const d = await r.json();
@@ -34,10 +34,11 @@ export default async function handler(req, res) {
       const results = [];
       for (const id of FLOW_IDS) {
         try {
-          const r = await fetch(`https://a.klaviyo.com/api/flows/${id}/`, { headers });
+          const r = await fetch(`https://a.klaviyo.com/api/flows/${id}`, { headers });
           const d = await r.json();
           results.push({ id, name: d.data?.attributes?.name, status: d.data?.attributes?.status });
         } catch { results.push({ id, error: true }); }
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
       return results;
     }
