@@ -74,7 +74,8 @@ export default async function handler(req, res) {
           const d = await r.json();
           const results = d.data?.attributes?.results?.[0];
           if (results) stats.push({ campaignId: id, ...results.statistics });
-        } catch { /* skip */ }
+          else if (d.errors) stats.push({ campaignId: id, error: d.errors[0]?.detail });
+        } catch(e) { stats.push({ campaignId: id, error: e.message }); }
         await new Promise(resolve => setTimeout(resolve, 500)); // rate limit
       }
       return stats;
