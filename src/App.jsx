@@ -158,9 +158,15 @@ CATALOGUE ADS: Prioritize Whipped Soaps, Body Butter, Essential Oil Bath Bombs i
 
 const C = {
   primaryPink: "#FCAFC0", hotPink: "#F05380", cream: "#FCF4EE",
-  coral: "#EE817E", blush: "#FFE3EC", charcoal: "#434343",
-  white: "#FFFFFF", gray100: "#F9F5F2", gray200: "#EDE8E3",
+  coral: "#EE817E", blush: "#FFE3EC", charcoal: "#2E2828",
+  white: "#FFFFFF", gray100: "#FAF6F3", gray200: "#EDE8E3",
   gray400: "#BDB6AD", gray600: "#7A7068",
+  rose: "#F9E4EC", deepPink: "#D63D6A",
+};
+
+const FONT = {
+  serif: "'Gelica', 'Georgia', serif",
+  sans: "'MuseoSansRounded', 'Helvetica Neue', sans-serif",
 };
 
 async function callClaude(system, user) {
@@ -236,32 +242,34 @@ function Dots() {
 
 function Card({ label, content, onCopy, copied }) {
   return (
-    <div style={{ background:C.white, border:`1px solid ${C.gray200}`, borderRadius:12, overflow:"hidden", marginBottom:12 }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 16px", background:C.cream, borderBottom:`1px solid ${C.gray200}` }}>
-        <span style={{ fontSize:11, fontWeight:700, letterSpacing:"0.08em", color:C.gray600, textTransform:"uppercase" }}>{label}</span>
-        <button onClick={onCopy} style={{ fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:6, border:`1px solid ${copied?C.hotPink:C.gray400}`, background:copied?C.blush:C.white, color:copied?C.hotPink:C.gray600, cursor:"pointer", transition:"all 0.2s" }}>{copied?"Copied!":"Copy"}</button>
+    <div style={{ background:C.white, border:`1px solid ${C.gray200}`, borderRadius:14, overflow:"hidden", marginBottom:14, boxShadow:`0 2px 12px rgba(240,83,128,0.06)` }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 16px", background:`linear-gradient(120deg,${C.blush},${C.cream})`, borderBottom:`1px solid ${C.gray200}` }}>
+        <span style={{ fontFamily:FONT.sans, fontSize:10.5, fontWeight:700, letterSpacing:"0.1em", color:C.coral, textTransform:"uppercase" }}>{label}</span>
+        <button onClick={onCopy} style={{ fontFamily:FONT.sans, fontSize:11, fontWeight:600, padding:"4px 12px", borderRadius:20, border:`1.5px solid ${copied?C.hotPink:C.gray200}`, background:copied?C.hotPink:C.white, color:copied?C.white:C.gray600, cursor:"pointer", transition:"all 0.2s" }}>{copied?"Copied ✓":"Copy"}</button>
       </div>
-      <pre style={{ margin:0, padding:"14px 16px", fontSize:13.5, lineHeight:1.65, color:C.charcoal, whiteSpace:"pre-wrap", fontFamily:"inherit" }}>{content}</pre>
+      <pre style={{ margin:0, padding:"16px 18px", fontSize:13.5, lineHeight:1.7, color:C.charcoal, whiteSpace:"pre-wrap", fontFamily:FONT.sans, fontWeight:300 }}>{content}</pre>
     </div>
   );
 }
 
 function Field({ label, value, onChange, placeholder, area, hint }) {
-  const base = { width:"100%", padding:"10px 12px", borderRadius:8, border:`1.5px solid ${C.gray200}`, fontSize:13.5, color:C.charcoal, fontFamily:"inherit", background:C.white, boxSizing:"border-box", outline:"none" };
   return (
-    <div style={{ marginBottom:16 }}>
-      <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.gray600, marginBottom:5, letterSpacing:"0.05em", textTransform:"uppercase" }}>{label}</label>
-      {hint && <p style={{ fontSize:11.5, color:C.gray400, marginBottom:6, marginTop:-2 }}>{hint}</p>}
-      {area ? <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={3} style={{ ...base, resize:"vertical", lineHeight:1.5 }} /> : <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={base} />}
+    <div style={{ marginBottom:18 }}>
+      <label style={{ display:"block", fontFamily:FONT.sans, fontSize:11, fontWeight:700, color:C.gray600, marginBottom:6, letterSpacing:"0.08em", textTransform:"uppercase" }}>{label}</label>
+      {hint && <p style={{ fontFamily:FONT.sans, fontSize:11.5, color:C.gray400, marginBottom:6, marginTop:-3, fontWeight:300 }}>{hint}</p>}
+      {area
+        ? <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={3} style={{ width:"100%", resize:"vertical", lineHeight:1.6 }} />
+        : <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{ width:"100%", display:"block" }} />
+      }
     </div>
   );
 }
 
 function Dropdown({ label, value, onChange, opts }) {
   return (
-    <div style={{ marginBottom:16 }}>
-      <label style={{ display:"block", fontSize:12, fontWeight:700, color:C.gray600, marginBottom:5, letterSpacing:"0.05em", textTransform:"uppercase" }}>{label}</label>
-      <select value={value} onChange={e=>onChange(e.target.value)} style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:`1.5px solid ${C.gray200}`, fontSize:13.5, color:C.charcoal, fontFamily:"inherit", background:C.white, boxSizing:"border-box", outline:"none", cursor:"pointer" }}>
+    <div style={{ marginBottom:18 }}>
+      <label style={{ display:"block", fontFamily:FONT.sans, fontSize:11, fontWeight:700, color:C.gray600, marginBottom:6, letterSpacing:"0.08em", textTransform:"uppercase" }}>{label}</label>
+      <select value={value} onChange={e=>onChange(e.target.value)} style={{ width:"100%", cursor:"pointer" }}>
         {opts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
       </select>
     </div>
@@ -271,14 +279,14 @@ function Dropdown({ label, value, onChange, opts }) {
 function Btn({ onClick, loading, label, disabled }) {
   const off = loading || disabled;
   return (
-    <button onClick={onClick} disabled={off} style={{ width:"100%", padding:"14px 20px", background:off?C.gray200:`linear-gradient(135deg,${C.hotPink},${C.coral})`, color:off?C.gray400:C.white, border:"none", borderRadius:10, fontSize:14, fontWeight:700, letterSpacing:"0.06em", textTransform:"uppercase", cursor:off?"not-allowed":"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:off?"none":`0 4px 16px ${C.hotPink}40` }}>
-      {loading?<><Dots/><span style={{fontSize:13}}>Generating...</span></>:label}
+    <button onClick={onClick} disabled={off} style={{ width:"100%", padding:"15px 20px", background:off?C.gray200:`linear-gradient(135deg,${C.hotPink} 0%,${C.coral} 100%)`, color:off?C.gray400:C.white, border:"none", borderRadius:30, fontSize:13, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", cursor:off?"not-allowed":"pointer", transition:"all 0.2s", display:"flex", alignItems:"center", justifyContent:"center", gap:10, boxShadow:off?"none":`0 6px 20px ${C.hotPink}45`, fontFamily:FONT.sans }}>
+      {loading?<><Dots/><span style={{fontSize:12.5,letterSpacing:"0.05em"}}>Generating...</span></>:label}
     </button>
   );
 }
 
 function Pill({ label, active, onClick }) {
-  return <button onClick={onClick} style={{ padding:"7px 14px", borderRadius:20, border:`1.5px solid ${active?C.hotPink:C.gray200}`, background:active?C.blush:C.white, color:active?C.hotPink:C.gray600, fontSize:12.5, fontWeight:active?700:500, cursor:"pointer", transition:"all 0.15s" }}>{label}</button>;
+  return <button onClick={onClick} style={{ fontFamily:FONT.sans, padding:"7px 16px", borderRadius:20, border:`1.5px solid ${active?C.hotPink:C.gray200}`, background:active?C.blush:C.white, color:active?C.hotPink:C.gray600, fontSize:12, fontWeight:active?700:400, cursor:"pointer", transition:"all 0.15s", boxShadow:active?`0 2px 8px ${C.hotPink}25`:"none" }}>{label}</button>;
 }
 
 // ── NEW SHARED COMPONENTS ──────────────────────────────────────────────────────
@@ -1907,48 +1915,64 @@ export default function App() {
   }[tab];
 
   return (
-    <div style={{fontFamily:"'Georgia','Times New Roman',serif",background:C.gray100,minHeight:"100vh",paddingBottom:60}}>
+    <div style={{fontFamily:FONT.sans,background:C.gray100,minHeight:"100vh",paddingBottom:60}}>
       <style>{`
+        @font-face{font-family:'Gelica';src:url('/fonts/Gelica-Regular.otf') format('opentype');font-weight:400;font-style:normal}
+        @font-face{font-family:'Gelica';src:url('/fonts/Gelica-Italic.otf') format('opentype');font-weight:400;font-style:italic}
+        @font-face{font-family:'Gelica';src:url('/fonts/Gelica-Light.otf') format('opentype');font-weight:300;font-style:normal}
+        @font-face{font-family:'Gelica';src:url('/fonts/Gelica-Medium.otf') format('opentype');font-weight:500;font-style:normal}
+        @font-face{font-family:'Gelica';src:url('/fonts/Gelica-SemiBold.otf') format('opentype');font-weight:600;font-style:normal}
+        @font-face{font-family:'Gelica';src:url('/fonts/Gelica-Bold.otf') format('opentype');font-weight:700;font-style:normal}
+        @font-face{font-family:'MuseoSansRounded';src:url('/fonts/MuseoSansRounded100.otf') format('opentype');font-weight:100}
+        @font-face{font-family:'MuseoSansRounded';src:url('/fonts/MuseoSansRounded300.otf') format('opentype');font-weight:300}
+        @font-face{font-family:'MuseoSansRounded';src:url('/fonts/MuseoSansRounded500.otf') format('opentype');font-weight:500}
+        @font-face{font-family:'MuseoSansRounded';src:url('/fonts/MuseoSansRounded700.otf') format('opentype');font-weight:700}
         @keyframes pulse{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1)}}
         *{box-sizing:border-box}
-        input,textarea,select{font-family:'Georgia','Times New Roman',serif!important}
-        input:focus,textarea:focus,select:focus{border-color:#F05380!important;box-shadow:0 0 0 3px #F0538018}
-        button{font-family:'Georgia','Times New Roman',serif}
-        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#FCAFC0;border-radius:2px}
+        input,textarea,select{font-family:'MuseoSansRounded','Helvetica Neue',sans-serif!important;background:${C.cream}!important;border:1.5px solid ${C.gray200}!important;border-radius:10px!important;padding:10px 14px!important;font-size:13.5px!important;color:${C.charcoal}!important;transition:border-color 0.15s,box-shadow 0.15s!important}
+        input:focus,textarea:focus,select:focus{border-color:${C.hotPink}!important;box-shadow:0 0 0 3px ${C.hotPink}15!important;outline:none!important;background:${C.white}!important}
+        button{font-family:'MuseoSansRounded','Helvetica Neue',sans-serif}
+        label{font-family:'MuseoSansRounded','Helvetica Neue',sans-serif!important}
+        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${C.primaryPink};border-radius:2px}
+        ::placeholder{color:${C.gray400}!important;opacity:1!important}
       `}</style>
 
-      <div style={{background:C.white,borderBottom:`1px solid ${C.gray200}`,padding:"20px 24px 0",position:"sticky",top:0,zIndex:100}}>
-        <div style={{maxWidth:680,margin:"0 auto"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-            <div style={{width:28,height:28,borderRadius:"50%",background:`linear-gradient(135deg,${C.primaryPink},${C.coral})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:C.white,flexShrink:0}}>N</div>
-            <span style={{fontSize:17,fontWeight:700,color:C.charcoal,letterSpacing:"-0.01em"}}>Nectar Studio</span>
-            <span style={{fontSize:12,color:C.gray400,letterSpacing:"0.05em"}}>BEYOND SWEET</span>
+      {/* ── HEADER ── */}
+      <div style={{background:C.white,borderBottom:`1px solid ${C.gray200}`,padding:"18px 24px 0",position:"sticky",top:0,zIndex:100,boxShadow:"0 1px 12px rgba(240,83,128,0.06)"}}>
+        <div style={{maxWidth:700,margin:"0 auto"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+            <img src="/Heart_Pink.png" alt="Nectar" style={{width:30,height:30,objectFit:"contain",flexShrink:0}}/>
+            <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+              <span style={{fontFamily:FONT.serif,fontSize:19,fontWeight:600,color:C.charcoal,letterSpacing:"-0.01em"}}>Nectar Studio</span>
+              <span style={{fontFamily:FONT.sans,fontSize:10,fontWeight:500,color:C.gray400,letterSpacing:"0.12em",textTransform:"uppercase"}}>Beyond Sweet</span>
+            </div>
             {ctx&&(
-              <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:20,background:C.blush,border:`1px solid ${C.primaryPink}`}}>
-                <span style={{width:6,height:6,borderRadius:"50%",background:C.hotPink,display:"inline-block",flexShrink:0}}/>
-                <span style={{fontSize:11,fontWeight:700,color:C.hotPink,maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ctx.name}</span>
-                <button onClick={()=>setCtx(null)} style={{fontSize:13,color:C.gray400,background:"none",border:"none",cursor:"pointer",padding:"0 0 0 2px",lineHeight:1}}>×</button>
+              <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:20,background:C.blush,border:`1px solid ${C.primaryPink}`}}>
+                <span style={{width:5,height:5,borderRadius:"50%",background:C.hotPink,display:"inline-block",flexShrink:0}}/>
+                <span style={{fontFamily:FONT.sans,fontSize:11,fontWeight:700,color:C.hotPink,maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ctx.name}</span>
+                <button onClick={()=>setCtx(null)} style={{fontSize:14,color:C.gray400,background:"none",border:"none",cursor:"pointer",padding:"0 0 0 2px",lineHeight:1}}>×</button>
               </div>
             )}
           </div>
-          <div style={{display:"flex",gap:0}}>
+          <div style={{display:"flex",gap:2}}>
             {tabs.map(t=>(
-              <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:"10px 16px 12px",background:"transparent",border:"none",cursor:"pointer",borderBottom:`2.5px solid ${tab===t.id?C.hotPink:"transparent"}`,color:tab===t.id?C.hotPink:C.gray400,fontWeight:tab===t.id?700:500,fontSize:13,transition:"all 0.15s",display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
-                <span>{t.label}</span>
-                <span style={{fontSize:9.5,letterSpacing:"0.04em",color:tab===t.id?C.coral:C.gray400}}>{t.sub}</span>
+              <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:"9px 15px 11px",background:"transparent",border:"none",cursor:"pointer",borderBottom:`2.5px solid ${tab===t.id?C.hotPink:"transparent"}`,color:tab===t.id?C.hotPink:C.gray400,fontWeight:tab===t.id?700:400,fontSize:12.5,transition:"all 0.15s",display:"flex",flexDirection:"column",alignItems:"center",gap:2,fontFamily:FONT.sans}}>
+                <span style={{letterSpacing:"0.01em"}}>{t.label}</span>
+                <span style={{fontSize:9,letterSpacing:"0.04em",color:tab===t.id?C.coral:C.gray400,fontWeight:400}}>{t.sub}</span>
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      <div style={{maxWidth:680,margin:"0 auto",padding:"28px 24px 0"}}>
-        <div style={{background:`linear-gradient(135deg,${C.blush},${C.cream})`,borderRadius:12,padding:"14px 18px",marginBottom:24,border:`1px solid ${C.primaryPink}40`}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <span style={{fontSize:18,color:C.hotPink}}>{active?.icon}</span>
+      <div style={{maxWidth:700,margin:"0 auto",padding:"28px 24px 0"}}>
+        {/* ── TAB BANNER ── */}
+        <div style={{background:`linear-gradient(120deg,${C.blush} 0%,${C.cream} 100%)`,borderRadius:14,padding:"16px 20px",marginBottom:28,border:`1px solid ${C.primaryPink}30`,boxShadow:`0 2px 12px ${C.primaryPink}20`}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <img src="/Heart_Pink.png" alt="" style={{width:22,height:22,objectFit:"contain",opacity:0.7,flexShrink:0}}/>
             <div>
-              <p style={{margin:0,fontSize:11,fontWeight:700,color:C.coral,letterSpacing:"0.08em",textTransform:"uppercase"}}>{active?.label} Generator</p>
-              <p style={{margin:"2px 0 0",fontSize:11.5,color:C.gray600}}>Brand DNA enforced on every generation · Dr. Lisa Glow voice · Guardrails active</p>
+              <p style={{margin:0,fontFamily:FONT.serif,fontSize:13,fontWeight:600,color:C.hotPink,letterSpacing:"0.02em"}}>{active?.label}</p>
+              <p style={{margin:"2px 0 0",fontFamily:FONT.sans,fontSize:11.5,color:C.gray600,fontWeight:300}}>Brand DNA enforced on every generation · Dr. Lisa Glow voice · Guardrails active</p>
             </div>
           </div>
         </div>
