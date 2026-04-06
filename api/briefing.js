@@ -200,11 +200,21 @@ export default async function handler(req, res) {
       fetch(`${baseUrl}/api/briefing-google`, { method: "POST", headers: { "Content-Type": "application/json" } })
     ]);
 
+    const safeJson = async (res, name) => {
+      try {
+        const text = await res.text();
+        return JSON.parse(text);
+      } catch {
+        console.error(`[briefing] ${name} returned non-JSON (status ${res.status})`);
+        return { unavailable: true, reason: `${name} returned an error (status ${res.status})` };
+      }
+    };
+
     const [shopifyData, klaviyoData, metaData, googleData] = await Promise.all([
-      shopifyRes.json(),
-      klaviyoRes.json(),
-      metaRes.json(),
-      googleRes.json()
+      safeJson(shopifyRes,  'briefing-shopify'),
+      safeJson(klaviyoRes,  'briefing-klaviyo'),
+      safeJson(metaRes,     'briefing-meta'),
+      safeJson(googleRes,   'briefing-google'),
     ]);
 
     // 2. Run agents sequentially to avoid rate limits — 1s gap between each
