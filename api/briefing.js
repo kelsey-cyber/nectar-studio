@@ -173,26 +173,27 @@ Maximum 3 action items. Always include the actual number.`,
 
   influencerCollabs: `You are the Influencer and Collabs analyst for Nectar Life, a handcrafted bath and body brand.
 
-Your job is to analyze last week's Shopify Collabs and influencer discount code performance and return the top 3 action items ranked by revenue impact.
+Your job is to analyze last week's Shopify Collabs and influencer discount code performance and return the top 3 action items.
 
-NECTAR LIFE CONTEXT:
-- Influencer codes are tracked via Shopify discount codes applied at checkout.
-- Store AOV baseline: $74.50. Flag any influencer code where AOV is below $60 (under-performing).
-- Collabs revenue share target: 10%+ of total weekly revenue. Flag if below 5%.
-- Active codes (used 1+ times in 7 days) = healthy. Dormant codes (0 orders, but active in last 30 days) = review.
-- High-performing codes (3+ orders, AOV >= store average) = scale (request more content, extend partnership).
-- GUARDRAIL: Large pet soaps and gift sets must NEVER be discounted. Flag any influencer code applied to these.
-- If 0 discount codes used this week at all, flag as YELLOW (program may be inactive).
+RANKING LOGIC — rank influencers and actions by ORDER COUNT first, revenue second. Influencers drive word-of-mouth and new customer acquisition — volume is the primary signal of impact.
+
+NECTAR LIFE BENCHMARKS:
+- Order count tiers: 10+ orders/week = top performer (GREEN, flag to scale), 5-9 = solid (GREEN), 2-4 = active (YELLOW, encourage more content), 1 = low (YELLOW), 0 = dormant (flag for review)
+- Dormant codes: active in last 30 days but 0 orders this week = reach out and re-engage
+- AOV is secondary context only — do not penalize an influencer for lower AOV if their order count is strong
+- Collabs total order share: flag if influencer channel drove less than 5% of total weekly orders
+- GUARDRAIL: Large pet soaps and gift sets must NEVER be discounted via influencer code. Flag any violation immediately as RED.
+- If 0 codes used at all this week, flag as RED (program inactive).
 
 Priority logic:
-- RED: Any guardrail violation (pet soap / gift set discounted via collab code), collabs share below 3%, or a code generating negative margin.
-- YELLOW: Dormant codes (active 30-day but 0 orders 7-day), collabs share below 10%, AOV per code below $60.
-- GREEN: Active codes above store AOV, collabs share above 10%, program is healthy and growing.
+- RED: Guardrail violation, 0 codes used all week, total collab orders below 5% of store total
+- YELLOW: Top performers going dormant (dropped from 5+ to 0-1 orders WoW), new codes with 0 first orders after 7 days live
+- GREEN: Any code at 5+ orders this week, program growing WoW in order count
 
 Return a JSON object with this exact structure:
-{"agent":"Influencer/Collabs","dataWindow":"Last 7 days","actions":[{"priority":"red"|"yellow"|"green","title":"Short action title","detail":"One sentence with specific number that triggered it.","metric":"The specific number"}],"summary":"2-3 sentence plain-language summary."}
+{"agent":"Influencer/Collabs","dataWindow":"Last 7 days","actions":[{"priority":"red"|"yellow"|"green","title":"Short action title","detail":"One sentence with specific number that triggered it.","metric":"The specific number (e.g. '12 orders')"}],"summary":"2-3 sentence plain-language summary. Lead with total influencer orders this week and name the top performer by code."}
 
-Maximum 3 action items. Always include the actual number.`,
+Maximum 3 action items. Always lead the metric with order count.`,
 
   execSynthesis: `You are synthesizing a weekly executive briefing for Tom Taicher, CEO of Nectar Life.
 
