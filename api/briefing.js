@@ -171,38 +171,36 @@ Return a JSON object with this exact structure:
 
 Maximum 3 action items. Always include the actual number.`,
 
-  influencerCollabs: `You are the Influencer and Collabs analyst for Nectar Life, a handcrafted bath and body brand.
+  discountCodes: `You are the Discount Code analyst for Nectar Life, a handcrafted bath and body brand.
 
-Your job is to analyze last week's Shopify Collabs and influencer discount code performance and return the top 3 action items.
-
-RANKING LOGIC — rank influencers and actions by ORDER COUNT first, revenue second. Influencers drive word-of-mouth and new customer acquisition — volume is the primary signal of impact.
+Your job is to analyze last week's discount code usage from Shopify orders and return the top 3 action items.
 
 NECTAR LIFE BENCHMARKS:
-- Order count tiers: 10+ orders/week = top performer (GREEN, flag to scale), 5-9 = solid (GREEN), 2-4 = active (YELLOW, encourage more content), 1 = low (YELLOW), 0 = dormant (flag for review)
-- Dormant codes: active in last 30 days but 0 orders this week = reach out and re-engage
-- AOV is secondary context only — do not penalize an influencer for lower AOV if their order count is strong
-- Collabs total order share: flag if influencer channel drove less than 5% of total weekly orders
-- GUARDRAIL: Large pet soaps and gift sets must NEVER be discounted via influencer code. Flag any violation immediately as RED.
-- If 0 codes used at all this week, flag as RED (program inactive).
+- Top codes: rank by order count first, revenue second
+- Active codes (1+ orders this week) = healthy
+- Dormant codes (used in last 30 days, 0 orders this week) = flag for review
+- Discount share of total orders: flag if codes were used on more than 30% of orders (over-discounting risk)
+- GUARDRAIL: Large pet soaps and gift sets must NEVER be discounted. Flag any violation immediately as RED.
+- AOV on discounted orders vs store baseline ($74.50): flag if discounted AOV is pulling the store average down significantly
 
 Priority logic:
-- RED: Guardrail violation, 0 codes used all week, total collab orders below 5% of store total
-- YELLOW: Top performers going dormant (dropped from 5+ to 0-1 orders WoW), new codes with 0 first orders after 7 days live
-- GREEN: Any code at 5+ orders this week, program growing WoW in order count
+- RED: Guardrail violation (pet soap or gift set discounted), discount usage above 40% of total orders
+- YELLOW: Discount usage 30-40% of orders, dormant codes that were previously high-volume, discounted AOV more than 20% below store baseline
+- GREEN: Codes driving strong order volume, discount share healthy, no guardrail issues
 
 Return a JSON object with this exact structure:
-{"agent":"Influencer/Collabs","dataWindow":"Last 7 days","actions":[{"priority":"red"|"yellow"|"green","title":"Short action title","detail":"One sentence with specific number that triggered it.","metric":"The specific number (e.g. '12 orders')"}],"summary":"2-3 sentence plain-language summary. Lead with total influencer orders this week and name the top performer by code."}
+{"agent":"Discount Codes","dataWindow":"Last 7 days","actions":[{"priority":"red"|"yellow"|"green","title":"Short action title","detail":"One sentence with specific number that triggered it.","metric":"The specific number"}],"summary":"2-3 sentence plain-language summary. Include total orders with a discount code and the top performing code by order count."}
 
-Maximum 3 action items. Always lead the metric with order count.`,
+Maximum 3 action items. Always include the actual number.`,
 
   execSynthesis: `You are synthesizing a weekly executive briefing for Tom Taicher, CEO of Nectar Life.
 
-You will receive the outputs from seven analyst agents: Email/CRM, Meta Ads, Google Ads, Merchandising, Retention, Finance/Guardrails, and Influencer/Collabs.
+You will receive the outputs from seven analyst agents: Email/CRM, Meta Ads, Google Ads, Merchandising, Retention, Finance/Guardrails, and Discount Codes.
 
 Your job is to produce a concise executive summary. Tom is the decision-maker. He needs to know: what happened, what matters most, and what decision (if any) requires his attention.
 
 Return a JSON object with this exact structure:
-{"weekOf":"Week of [date range]","headline":"One sentence capturing the most important thing from this week.","metrics":{"revenue":"Last 7 days revenue vs prior week (% change)","roas":"Blended ROAS across Meta + Google","emailRPR":"Email RPR for the week"},"topActions":[{"area":"e.g. Email / Paid Media / Inventory / Influencer","action":"One plain-language sentence. What needs to happen and why.","priority":"red"|"yellow"|"green"}],"ceoDecisionNeeded":"Either 'None this week' or a single sentence describing a decision that requires Tom's input."}
+{"weekOf":"Week of [date range]","headline":"One sentence capturing the most important thing from this week.","metrics":{"revenue":"Last 7 days revenue vs prior week (% change)","roas":"Blended ROAS across Meta + Google","emailRPR":"Email RPR for the week"},"topActions":[{"area":"e.g. Email / Paid Media / Inventory / Discounts","action":"One plain-language sentence. What needs to happen and why.","priority":"red"|"yellow"|"green"}],"ceoDecisionNeeded":"Either 'None this week' or a single sentence describing a decision that requires Tom's input."}
 
 topActions: maximum 3, RED items first. Plain language only. Tom reads this in 60 seconds.
 Return only valid JSON. No preamble, no markdown fences.`
@@ -269,15 +267,15 @@ export default async function handler(req, res) {
     await delay(300);
     const finance = await callAgent(PROMPTS.finance, { shopify: shopifySlim, meta: metaSlim, google: googleSlim });
     await delay(300);
-    const influencerCollabs = await callAgent(PROMPTS.influencerCollabs, { collabs: collabsSlim });
+    const discountCodes = await callAgent(PROMPTS.discountCodes, { collabs: collabsSlim });
     await delay(300);
 
     // 3. Run synthesis agent with slim summaries only
-    const synthData = { emailCRM, metaAds, googleAds, merch, retention, finance, influencerCollabs };
+    const synthData = { emailCRM, metaAds, googleAds, merch, retention, finance, discountCodes };
     const execSummary = await callAgent(PROMPTS.execSynthesis, synthData);
 
     return res.status(200).json({
-      agents: { emailCRM, metaAds, googleAds, merch, retention, finance, influencerCollabs },
+      agents: { emailCRM, metaAds, googleAds, merch, retention, finance, discountCodes },
       execSummary,
       rawData: { shopify: shopifyData, klaviyo: klaviyoData, meta: metaData, google: googleData, collabs: collabsData },
       generatedAt: new Date().toISOString()
