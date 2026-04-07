@@ -171,14 +171,37 @@ Return a JSON object with this exact structure:
 
 Maximum 3 action items. Always include the actual number.`,
 
+  influencerCollabs: `You are the Influencer and Collabs analyst for Nectar Life, a handcrafted bath and body brand.
+
+Your job is to analyze last week's Shopify Collabs and influencer discount code performance and return the top 3 action items ranked by revenue impact.
+
+NECTAR LIFE CONTEXT:
+- Influencer codes are tracked via Shopify discount codes applied at checkout.
+- Store AOV baseline: $74.50. Flag any influencer code where AOV is below $60 (under-performing).
+- Collabs revenue share target: 10%+ of total weekly revenue. Flag if below 5%.
+- Active codes (used 1+ times in 7 days) = healthy. Dormant codes (0 orders, but active in last 30 days) = review.
+- High-performing codes (3+ orders, AOV >= store average) = scale (request more content, extend partnership).
+- GUARDRAIL: Large pet soaps and gift sets must NEVER be discounted. Flag any influencer code applied to these.
+- If 0 discount codes used this week at all, flag as YELLOW (program may be inactive).
+
+Priority logic:
+- RED: Any guardrail violation (pet soap / gift set discounted via collab code), collabs share below 3%, or a code generating negative margin.
+- YELLOW: Dormant codes (active 30-day but 0 orders 7-day), collabs share below 10%, AOV per code below $60.
+- GREEN: Active codes above store AOV, collabs share above 10%, program is healthy and growing.
+
+Return a JSON object with this exact structure:
+{"agent":"Influencer/Collabs","dataWindow":"Last 7 days","actions":[{"priority":"red"|"yellow"|"green","title":"Short action title","detail":"One sentence with specific number that triggered it.","metric":"The specific number"}],"summary":"2-3 sentence plain-language summary."}
+
+Maximum 3 action items. Always include the actual number.`,
+
   execSynthesis: `You are synthesizing a weekly executive briefing for Tom Taicher, CEO of Nectar Life.
 
-You will receive the outputs from six analyst agents: Email/CRM, Meta Ads, Google Ads, Merchandising, Retention, and Finance/Guardrails.
+You will receive the outputs from seven analyst agents: Email/CRM, Meta Ads, Google Ads, Merchandising, Retention, Finance/Guardrails, and Influencer/Collabs.
 
 Your job is to produce a concise executive summary. Tom is the decision-maker. He needs to know: what happened, what matters most, and what decision (if any) requires his attention.
 
 Return a JSON object with this exact structure:
-{"weekOf":"Week of [date range]","headline":"One sentence capturing the most important thing from this week.","metrics":{"revenue":"Last 7 days revenue vs prior week (% change)","roas":"Blended ROAS across Meta + Google","emailRPR":"Email RPR for the week"},"topActions":[{"area":"e.g. Email / Paid Media / Inventory","action":"One plain-language sentence. What needs to happen and why.","priority":"red"|"yellow"|"green"}],"ceoDecisionNeeded":"Either 'None this week' or a single sentence describing a decision that requires Tom's input."}
+{"weekOf":"Week of [date range]","headline":"One sentence capturing the most important thing from this week.","metrics":{"revenue":"Last 7 days revenue vs prior week (% change)","roas":"Blended ROAS across Meta + Google","emailRPR":"Email RPR for the week"},"topActions":[{"area":"e.g. Email / Paid Media / Inventory / Influencer","action":"One plain-language sentence. What needs to happen and why.","priority":"red"|"yellow"|"green"}],"ceoDecisionNeeded":"Either 'None this week' or a single sentence describing a decision that requires Tom's input."}
 
 topActions: maximum 3, RED items first. Plain language only. Tom reads this in 60 seconds.
 Return only valid JSON. No preamble, no markdown fences.`
@@ -193,11 +216,12 @@ export default async function handler(req, res) {
 
   try {
     // 1. Fetch all data in parallel
-    const [shopifyRes, klaviyoRes, metaRes, googleRes] = await Promise.all([
+    const [shopifyRes, klaviyoRes, metaRes, googleRes, collabsRes] = await Promise.all([
       fetch(`${baseUrl}/api/briefing-shopify`, { method: "POST", headers: { "Content-Type": "application/json" } }),
       fetch(`${baseUrl}/api/briefing-klaviyo`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ klaviyoKey }) }),
       fetch(`${baseUrl}/api/briefing-meta`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ metaToken, metaAccountId }) }),
-      fetch(`${baseUrl}/api/briefing-google`, { method: "POST", headers: { "Content-Type": "application/json" } })
+      fetch(`${baseUrl}/api/briefing-google`, { method: "POST", headers: { "Content-Type": "application/json" } }),
+      fetch(`${baseUrl}/api/briefing-collabs`, { method: "POST", headers: { "Content-Type": "application/json" } })
     ]);
 
     const safeJson = async (res, name) => {
@@ -210,11 +234,12 @@ export default async function handler(req, res) {
       }
     };
 
-    const [shopifyData, klaviyoData, metaData, googleData] = await Promise.all([
-      safeJson(shopifyRes,  'briefing-shopify'),
-      safeJson(klaviyoRes,  'briefing-klaviyo'),
-      safeJson(metaRes,     'briefing-meta'),
-      safeJson(googleRes,   'briefing-google'),
+    const [shopifyData, klaviyoData, metaData, googleData, collabsData] = await Promise.all([
+      safeJson(shopifyRes,   'briefing-shopify'),
+      safeJson(klaviyoRes,   'briefing-klaviyo'),
+      safeJson(metaRes,      'briefing-meta'),
+      safeJson(googleRes,    'briefing-google'),
+      safeJson(collabsRes,   'briefing-collabs'),
     ]);
 
     // 2. Run agents sequentially to avoid rate limits — 1s gap between each
@@ -225,6 +250,11 @@ export default async function handler(req, res) {
     const klaviyoSlim = { emailCampaigns: (klaviyoData.emailCampaigns||[]).slice(0,6), smsCampaigns: (klaviyoData.smsCampaigns||[]).slice(0,4), flows: klaviyoData.flows, emailStats: (klaviyoData.emailStats||[]).slice(0,6) };
     const metaSlim = { summary: metaData.summary, top3Roas: metaData.top3Roas, bottom3Cpa: metaData.bottom3Cpa, highFrequency: metaData.highFrequency };
     const googleSlim = googleData.unavailable ? { unavailable: true, reason: googleData.reason } : { summary: googleData.summary, campaigns: (googleData.campaigns||[]).slice(0,6), highCpa: googleData.highCpa, topSearchTerms: (googleData.topSearchTerms||[]).slice(0,5), negativeKeywordAlert: googleData.negativeKeywordAlert };
+    const collabsSlim = collabsData.unavailable ? { unavailable: true, reason: collabsData.reason } : {
+      last7Days: collabsData.last7Days,
+      dormantCodes: (collabsData.dormantCodes || []).slice(0, 10),
+      topPriceRules: (collabsData.priceRules || []).slice(0, 10)
+    };
 
     const emailCRM = await callAgent(PROMPTS.emailCRM, { klaviyo: klaviyoSlim });
     await delay(300);
@@ -238,15 +268,17 @@ export default async function handler(req, res) {
     await delay(300);
     const finance = await callAgent(PROMPTS.finance, { shopify: shopifySlim, meta: metaSlim, google: googleSlim });
     await delay(300);
+    const influencerCollabs = await callAgent(PROMPTS.influencerCollabs, { collabs: collabsSlim });
+    await delay(300);
 
     // 3. Run synthesis agent with slim summaries only
-    const synthData = { emailCRM, metaAds, googleAds, merch, retention, finance };
+    const synthData = { emailCRM, metaAds, googleAds, merch, retention, finance, influencerCollabs };
     const execSummary = await callAgent(PROMPTS.execSynthesis, synthData);
 
     return res.status(200).json({
-      agents: { emailCRM, metaAds, googleAds, merch, retention, finance },
+      agents: { emailCRM, metaAds, googleAds, merch, retention, finance, influencerCollabs },
       execSummary,
-      rawData: { shopify: shopifyData, klaviyo: klaviyoData, meta: metaData, google: googleData },
+      rawData: { shopify: shopifyData, klaviyo: klaviyoData, meta: metaData, google: googleData, collabs: collabsData },
       generatedAt: new Date().toISOString()
     });
   } catch (err) {

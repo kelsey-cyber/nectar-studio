@@ -1797,7 +1797,7 @@ function WeeklyBriefing() {
   const [results, setResults] = React.useState(null);
   const [error, setError] = React.useState(null);
   const [lastRun, setLastRun] = React.useState(null);
-  const AGENT_NAMES = ["Shopify data", "Klaviyo data", "Meta data", "Google Ads data", "Running agents", "Synthesizing"];
+  const AGENT_NAMES = ["Shopify data", "Klaviyo data", "Meta data", "Google Ads data", "Collabs data", "Running agents", "Synthesizing"];
   const [agentIdx, setAgentIdx] = React.useState(0);
 
   function switchView(v) {
